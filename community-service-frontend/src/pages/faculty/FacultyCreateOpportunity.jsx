@@ -121,7 +121,8 @@ export default function FacultyCreateOpportunity() {
   };
 
   return (
-    <Box sx={{ height: "100vh", bgcolor: "#F5F5F7", display: "flex", p: 2 }}>
+      <Box sx={{ height: "100vh", bgcolor: "#F5F5F7", display: "flex", gap: 2, paddingLeft: 3}}>
+
       <FacultySidebar active="create" />
 
       <Box

@@ -93,7 +93,7 @@ export default function FacultyMessages() {
   };
 
   return (
-    <Box sx={{ height: "100vh", bgcolor: "#F5F5F7", display: "flex", p: 2 }}>
+    <Box sx={{ height: "100vh", bgcolor: "#F5F5F7", display: "flex", gap: 2, paddingLeft: 3}}>
       <FacultySidebar active="messages" />
 
       {/* MAIN CONTENT */}
@@ -102,7 +102,7 @@ export default function FacultyMessages() {
           flex: 1,
           bgcolor: "#fff",
           borderRadius: "30px",
-          p: 3.5,
+          p: 4,
           display: "flex",
           gap: 3,
         }}
@@ -111,9 +111,10 @@ export default function FacultyMessages() {
         <Box
           sx={{
             width: 330,
-            bgcolor: "#F8FAF9",
+            bgcolor: "#F0F9F5",
             borderRadius: "20px",
-            p: 2.5,
+            paddingLeft: 2,
+            paddingRight: 2,
             height: "100%",
             overflowY: "auto",
           }}

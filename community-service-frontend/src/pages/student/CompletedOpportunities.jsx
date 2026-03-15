@@ -87,7 +87,7 @@ export default function CompletedOpportunities() {
   };
 
   return (
-    <Box sx={{ height: "100vh", bgcolor: "#F5F5F7", display: "flex", p: 2 }}>
+    <Box sx={{ height: "100vh", bgcolor: "#F5F5F7", display: "flex", gap: 2, paddingLeft: 3}}>
       
       {/* LEFT SIDEBAR */}
       <StudentSidebar active="completed" />

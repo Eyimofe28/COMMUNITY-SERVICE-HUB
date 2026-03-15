@@ -137,11 +137,12 @@ export default function ApproverDashboard() {
   };
 
   return (
-    <Box sx={{ display: "flex", bgcolor: "#F5F5F7", minHeight: "100vh" }}>
+    <Box sx={{ display: "flex", bgcolor: "#F5F5F7", height: "100vh", overflow: "hidden" }}>
       {/* MAIN CONTENT AREA */}
-      <Box sx={{ flexGrow: 1, p: 5 }}>
+      <Box sx={{ flexGrow: 1, p: 5, display: "flex", flexDirection: "column", height: "100vh" }}>
+
         {/* HEADER + SEARCH */}
-        <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+        <Box sx={{ display: "flex", justifyContent: "space-between", flexShrink: 0 }}>
           <Typography variant="h4" sx={{ fontWeight: 700 }}>
             Dashboard
           </Typography>
@@ -162,6 +163,7 @@ export default function ApproverDashboard() {
             justifyContent: "space-between",
             alignItems: "center",
             boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
+            flexShrink: 0,
           }}
         >
           <Box>
@@ -184,7 +186,7 @@ export default function ApproverDashboard() {
         <Tabs
           value={tab}
           onChange={(e, v) => setTab(v)}
-          sx={{ mt: 4} }
+          sx={{ mt: 4, flexShrink: 0 }}
           textColor="primary"
           indicatorColor="primary"
           bgcolor="#144C3A"
@@ -196,78 +198,80 @@ export default function ApproverDashboard() {
           <Tab label="Rejected BY YOU" sx={{ fontWeight: 600 }} />   // NEW TAB
         </Tabs>
 
-        <Divider sx={{ mb: 3 }} />
+        <Divider sx={{ mb: 3, flexShrink: 0 }} />
+        
+        {/* SCROLLABLE TAB CONTENT CONTAINER */}
+        <Box sx={{ flex: 1, overflow: "auto", pr: 2, pb: 4.5 }}>
+          {/* TAB CONTENT */}
+          {tab === 0 && (
+            <>
+              {pending.length === 0 ? (
+                <Typography sx={{ color: "#6B7280", mt: 2 }}>
+                  No pending opportunities.
+                </Typography>
+              ) : (
+                pending.map((o) => (
+                  <Paper
+                    key={o.Opportunity_ID}
+                    sx={{
+                      p: 3,
+                      mb: 3,
+                      borderRadius: "20px",
+                      boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
+                    }}
+                  >
+                    {/* TITLE + ICON */}
+                    <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                      <Box sx={{ display: "flex", gap: 2 }}>
+                        <Box
+                          sx={{
+                            width: 50,
+                            height: 50,
+                            bgcolor: "#E5F6ED",
+                            borderRadius: "14px",
+                            display: "flex",
+                            justifyContent: "center",
+                            alignItems: "center",
+                          }}
+                        >
+                          {getIcon(o.Title)}
+                        </Box>
 
-        {/* TAB CONTENT */}
-        {tab === 0 && (
-          <>
-            {pending.length === 0 ? (
-              <Typography sx={{ color: "#6B7280", mt: 2 }}>
-                No pending opportunities.
-              </Typography>
-            ) : (
-              pending.map((o) => (
-                <Paper
-                  key={o.Opportunity_ID}
-                  sx={{
-                    p: 3,
-                    mb: 3,
-                    borderRadius: "20px",
-                    boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
-                  }}
-                >
-                  {/* TITLE + ICON */}
-                  <Box sx={{ display: "flex", justifyContent: "space-between" }}>
-                    <Box sx={{ display: "flex", gap: 2 }}>
-                      <Box
-                        sx={{
-                          width: 50,
-                          height: 50,
-                          bgcolor: "#E5F6ED",
-                          borderRadius: "14px",
-                          display: "flex",
-                          justifyContent: "center",
-                          alignItems: "center",
-                        }}
-                      >
-                        {getIcon(o.Title)}
+                        <Box>
+                          <Typography sx={{ fontWeight: 700, fontSize: "18px" }}>
+                            {o.Title}
+                          </Typography>
+                          <Typography sx={{ color: "#6B7280" }}>
+                            {new Date(o.Date).toLocaleDateString()} • {o.Start_Time} –{" "}
+                            {o.End_Time}
+                          </Typography>
+                          <Typography sx={{ color: "#4B5563", fontSize: "14px" }}>
+                            Created by: {o.Person_In_Charge}
+                          </Typography>
+
+                        </Box>
                       </Box>
 
-                      <Box>
-                        <Typography sx={{ fontWeight: 700, fontSize: "18px" }}>
-                          {o.Title}
-                        </Typography>
-                        <Typography sx={{ color: "#6B7280" }}>
-                          {new Date(o.Date).toLocaleDateString()} • {o.Start_Time} –{" "}
-                          {o.End_Time}
-                        </Typography>
-                        <Typography sx={{ color: "#4B5563", fontSize: "14px" }}>
-                          Created by: {o.Person_In_Charge}
-                        </Typography>
-
-                      </Box>
+                      <Chip label="Pending" sx={{ bgcolor: "#FEF9C3" }} />
                     </Box>
 
-                    <Chip label="Pending" sx={{ bgcolor: "#FEF9C3" }} />
-                  </Box>
+                    <Divider sx={{ my: 2 }} />
 
-                  <Divider sx={{ my: 2 }} />
+                    <Typography sx={{ mb: 2 }}>{o.Description}</Typography>
 
-                  <Typography sx={{ mb: 2 }}>{o.Description}</Typography>
+                    <Box sx={{ display: "flex", gap: 2 }}>
+                      <Button
+                        variant="contained"
+                        sx={{
+                          bgcolor: "#166534",
+                          "&:hover": { bgcolor: "#14532D" },
+                        }}
+                        onClick={() => approve(o.Opportunity_ID)}
+                      >
+                        Approve
+                      </Button>
 
-                  <Box sx={{ display: "flex", gap: 2 }}>
-                    <Button
-                      variant="contained"
-                      sx={{
-                        bgcolor: "#166534",
-                        "&:hover": { bgcolor: "#14532D" },
-                      }}
-                      onClick={() => approve(o.Opportunity_ID)}
-                    >
-                      Approve
-                    </Button>
-
-                    <Button
+                      <Button
                         variant="outlined"
                         color="error"
                         onClick={() => {
@@ -278,168 +282,168 @@ export default function ApproverDashboard() {
                         Reject
                     </Button>
 
-                  </Box>
-                </Paper>
-              ))
-            )}
-          </>
-        )}
+                    </Box>
+                  </Paper>
+                ))
+              )}
+            </>
+          )}
 
-        {tab === 1 && (
-          <>
-            {approved.length === 0 ? (
-              <Typography sx={{ color: "#6B7280", mt: 2 }}>
-                No approved opportunities yet.
-              </Typography>
-            ) : (
-              approved.map((o) => (
-                <Paper
-                  key={o.Opportunity_ID}
-                  sx={{
-                    p: 3,
-                    mb: 3,
-                    borderRadius: "20px",
-                    boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
-                  }}
-                >
-                  {/* TITLE + ICON */}
-                  <Box sx={{ display: "flex", justifyContent: "space-between" }}>
-                    <Box sx={{ display: "flex", gap: 2 }}>
-                      <Box
-                        sx={{
-                          width: 50,
-                          height: 50,
-                          bgcolor: "#E5F6ED",
-                          borderRadius: "14px",
-                          display: "flex",
-                          justifyContent: "center",
-                          alignItems: "center",
-                        }}
-                      >
-                        {getIcon(o.Title)}
+          {tab === 1 && (
+            <>
+              {approved.length === 0 ? (
+                <Typography sx={{ color: "#6B7280", mt: 2 }}>
+                  No approved opportunities yet.
+                </Typography>
+              ) : (
+                approved.map((o) => (
+                  <Paper
+                    key={o.Opportunity_ID}
+                    sx={{
+                      p: 3,
+                      mb: 3,
+                      borderRadius: "20px",
+                      boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
+                    }}
+                  >
+                    {/* TITLE + ICON */}
+                    <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                      <Box sx={{ display: "flex", gap: 2 }}>
+                        <Box
+                          sx={{
+                            width: 50,
+                            height: 50,
+                            bgcolor: "#E5F6ED",
+                            borderRadius: "14px",
+                            display: "flex",
+                            justifyContent: "center",
+                            alignItems: "center",
+                          }}
+                        >
+                          {getIcon(o.Title)}
+                        </Box>
+
+                        <Box>
+                          <Typography sx={{ fontWeight: 700, fontSize: "18px" }}>
+                            {o.Title}
+                          </Typography>
+                          <Typography sx={{ color: "#6B7280" }}>
+                            {new Date(o.Date).toLocaleDateString()} • {o.Start_Time} –{" "}
+                            {o.End_Time}
+                          </Typography>
+                          <Typography sx={{ color: "#4B5563", fontSize: "14px" }}>
+                            Created by: {o.Person_In_Charge}
+                          </Typography>
+
+                        </Box>
                       </Box>
 
-                      <Box>
-                        <Typography sx={{ fontWeight: 700, fontSize: "18px" }}>
-                          {o.Title}
-                        </Typography>
-                        <Typography sx={{ color: "#6B7280" }}>
-                          {new Date(o.Date).toLocaleDateString()} • {o.Start_Time} –{" "}
-                          {o.End_Time}
-                        </Typography>
-                        <Typography sx={{ color: "#4B5563", fontSize: "14px" }}>
-                        Created by: {o.Person_In_Charge}
-                      </Typography>
-
-                      </Box>
+                      <Chip
+                        label="Approved"
+                        sx={{ bgcolor: "#DCFCE7", color: "#166534" }}
+                      />
                     </Box>
 
-                    <Chip
-                      label="Approved"
-                      sx={{ bgcolor: "#DCFCE7", color: "#166534" }}
-                    />
-                  </Box>
+                    <Divider sx={{ my: 2 }} />
 
-                  <Divider sx={{ my: 2 }} />
+                    <Typography>{o.Description}</Typography>
+                  </Paper>
+                ))
+              )}
+            </>
+          )}
 
-                  <Typography>{o.Description}</Typography>
-                </Paper>
-              ))
-            )}
-          </>
-        )}
-
-        {tab === 2 && (
-  <>
-    {rejected.length === 0 ? (
-      <Typography sx={{ color: "#6B7280", mt: 2 }}>
-        No rejected opportunities yet.
-      </Typography>
-    ) : (
-      rejected.map((o) => (
-        <Paper
-          key={o.Opportunity_ID}
-          sx={{
-            p: 3,
-            mb: 3,
-            borderRadius: "20px",
-            boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
-          }}
-        >
-          <Box sx={{ display: "flex", justifyContent: "space-between" }}>
-            <Box sx={{ display: "flex", gap: 2 }}>
-              <Box
-                sx={{
-                  width: 50,
-                  height: 50,
-                  bgcolor: "#FEE2E2",
-                  borderRadius: "14px",
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                }}
-              >
-                {getIcon(o.Title)}
-              </Box>
-
-              <Box>
-                <Typography sx={{ fontWeight: 700, fontSize: "18px" }}>
-                  {o.Title}
+          {tab === 2 && (
+            <>
+              {rejected.length === 0 ? (
+                <Typography sx={{ color: "#6B7280", mt: 2 }}>
+                  No rejected opportunities yet.
                 </Typography>
-                <Typography sx={{ color: "#6B7280" }}>
-                  {new Date(o.Date).toLocaleDateString()} • {o.Start_Time} –{" "}
-                  {o.End_Time}
-                </Typography>
-                <Typography sx={{ color: "#4B5563", fontSize: "14px" }}>
-                  Created by: {o.Person_In_Charge}
-                </Typography>
+              ) : (
+                rejected.map((o) => (
+                  <Paper
+                    key={o.Opportunity_ID}
+                    sx={{
+                      p: 3,
+                      mb: 3,
+                      borderRadius: "20px",
+                      boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
+                    }}
+                  >
+                    <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                      <Box sx={{ display: "flex", gap: 2 }}>
+                        <Box
+                          sx={{
+                            width: 50,
+                            height: 50,
+                            bgcolor: "#FEE2E2",
+                            borderRadius: "14px",
+                            display: "flex",
+                            justifyContent: "center",
+                            alignItems: "center",
+                          }}
+                        >
+                          {getIcon(o.Title)}
+                        </Box>
 
-              </Box>
-            </Box>
+                        <Box>
+                          <Typography sx={{ fontWeight: 700, fontSize: "18px" }}>
+                            {o.Title}
+                          </Typography>
+                          <Typography sx={{ color: "#6B7280" }}>
+                            {new Date(o.Date).toLocaleDateString()} • {o.Start_Time} –{" "}
+                            {o.End_Time}
+                          </Typography>
+                          <Typography sx={{ color: "#4B5563", fontSize: "14px" }}>
+                            Created by: {o.Person_In_Charge}
+                          </Typography>
 
-            <Chip label="Rejected" sx={{ bgcolor: "#FECACA", color: "#B91C1C" }} />
-          </Box>
+                        </Box>
+                      </Box>
 
-          <Divider sx={{ my: 2 }} />
+                      <Chip label="Rejected" sx={{ bgcolor: "#FECACA", color: "#B91C1C" }} />
+                    </Box>
 
-          <Typography sx={{ mb: 1 }}>{o.Description}</Typography>
-          <Typography sx={{ color: "#B91C1C", fontWeight: 600 }}>
-            Reason: {o.Rejection_Reason}
-          </Typography>
-        </Paper>
-      ))
-    )}
-  </>
-)}
+                    <Divider sx={{ my: 2 }} />
+
+                    <Typography sx={{ mb: 1 }}>{o.Description}</Typography>
+                    <Typography sx={{ color: "#B91C1C", fontWeight: 600 }}>
+                      Reason: {o.Rejection_Reason}
+                    </Typography>
+                  </Paper>
+                ))
+              )}
+            </>
+          )}
+        </Box>
 
         {/* REJECTION MODAL */}
         <Dialog open={rejectModalOpen} onClose={() => setRejectModalOpen(false)}>
-  <DialogTitle>Reject Opportunity</DialogTitle>
+          <DialogTitle>Reject Opportunity</DialogTitle>
 
-  <DialogContent>
-    <TextField
-      fullWidth
-      multiline
-      rows={3}
-      placeholder="Enter reason for rejection..."
-      value={rejectionReason}
-      onChange={(e) => setRejectionReason(e.target.value)}
-      sx={{ mt: 2 }}
-    />
-  </DialogContent>
+          <DialogContent>
+            <TextField
+              fullWidth
+              multiline
+              rows={3}
+              placeholder="Enter reason for rejection..."
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              sx={{ mt: 2 }}
+            />
+          </DialogContent>
 
-  <DialogActions>
-    <Button onClick={() => setRejectModalOpen(false)}>Cancel</Button>
-    <Button
-      variant="contained"
-      color="error"
-      onClick={reject}
-    >
-      Submit Rejection
-    </Button>
-  </DialogActions>
-</Dialog>
-
+          <DialogActions>
+            <Button onClick={() => setRejectModalOpen(false)}>Cancel</Button>
+            <Button
+              variant="contained"
+              color="error"
+              onClick={reject}
+            >
+              Submit Rejection
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     </Box>
   );

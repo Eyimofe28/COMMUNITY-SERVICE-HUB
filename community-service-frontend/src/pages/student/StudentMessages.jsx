@@ -73,7 +73,7 @@ export default function StudentMessages() {
   }, [activeOpportunity, token]);
 
   return (
-    <Box sx={{ height: "100vh", bgcolor: "#F5F5F7", display: "flex", p: 2 }}>
+    <Box sx={{ height: "100vh", bgcolor: "#F5F5F7", display: "flex", gap: 2, paddingLeft: 3}}>
       {/* SIDEBAR */}
       <StudentSidebar active="messages" />
 
@@ -95,7 +95,7 @@ export default function StudentMessages() {
             width: "28%",
             borderRadius: "20px",
             p: 2,
-            bgcolor: "#F9FAFB",
+            bgcolor: "#F0F9F5",
             overflowY: "auto",
           }}
         >

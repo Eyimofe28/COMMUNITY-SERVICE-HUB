@@ -28,7 +28,7 @@ export default function StudentSidebar({ active }) {
       sx={{
         width: 90,
         bgcolor: "#0B3D2E",
-        borderRadius: "30px",
+        borderRadius: "40px",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",

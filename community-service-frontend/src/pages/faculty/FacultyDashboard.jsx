@@ -14,6 +14,7 @@ import {
   Chip,
   Tabs,
   Tab,
+  Button,
 } from "@mui/material";
 
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
@@ -58,6 +59,11 @@ export default function FacultyDashboard() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState(0);
   const [expandedId, setExpandedId] = useState(null);
+  const [pendingPage, setPendingPage] = useState(0);
+  const [approvedPage, setApprovedPage] = useState(0);
+  const [rejectedPage, setRejectedPage] = useState(0);
+
+  const ITEMS_PER_PAGE = 2;
 
   // ---------------- LOAD SUBMISSIONS ----------------
   useEffect(() => {
@@ -86,6 +92,51 @@ export default function FacultyDashboard() {
 
     if (token) fetchSubmissions();
   }, [token]);
+
+  const handleTabChange = (e, v) => {
+    setTab(v);
+    setExpandedId(null);
+  };
+
+  // Get current page based on tab
+  const getCurrentPage = () => {
+    if (tab === 0) return pendingPage;
+    if (tab === 1) return approvedPage;
+    return rejectedPage;
+  };
+
+  // Set current page based on tab
+  const setCurrentPage = (page) => {
+    if (tab === 0) setPendingPage(page);
+    else if (tab === 1) setApprovedPage(page);
+    else setRejectedPage(page);
+  };
+
+  // Get current tab data
+  const getCurrentData = () => {
+    if (tab === 0) return pending;
+    if (tab === 1) return approved;
+    return rejected;
+  };
+
+  // Paginate data
+  const currentData = getCurrentData();
+  const currentPage = getCurrentPage();
+  const startIdx = currentPage * ITEMS_PER_PAGE;
+  const paginatedData = currentData.slice(startIdx, startIdx + ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(currentData.length / ITEMS_PER_PAGE);
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages - 1) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 0) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
 
   // ---------- STATUS CHIP COLORS ----------
   const getStatusChipProps = (status) => {
@@ -131,9 +182,9 @@ export default function FacultyDashboard() {
         }}
         onClick={() => setExpandedId(expanded ? null : id)}
       >
-        {/* ---- Top Row ---- */}
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
+        {/* ---- Top Row with Fixed Layout ---- */}
+        <Box sx={{ display: "grid", gridTemplateColumns: "1fr 200px 120px", gap: 2, alignItems: "center" }}>
+          <Box sx={{ display: "flex", gap: 2, alignItems: "center", minWidth: 0 }}>
             <Box
               sx={{
                 width: 48,
@@ -143,28 +194,38 @@ export default function FacultyDashboard() {
                 display: "flex",
                 justifyContent: "center",
                 alignItems: "center",
+                flexShrink: 0,
               }}
             >
               {getIconForCategory(opp.Title)}
             </Box>
 
-            <Box>
-              <Typography sx={{ fontWeight: 700, color: "#111827" }}>{opp.Title}</Typography>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography
+                sx={{ fontWeight: 700, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+              >
+                {opp.Title}
+              </Typography>
             </Box>
           </Box>
 
-          <Box sx={{ textAlign: "right", mr: 2 }}>
+          <Box sx={{ textAlign: "right" }}>
             {opp.Duration && (
               <Typography variant="body2" sx={{ fontWeight: 600 }}>
                 {opp.Duration} hrs
               </Typography>
             )}
             <Typography variant="body2" sx={{ color: "#6B7280" }}>
-              {date} {date && timeRange && "•"} {timeRange}
+              {date}
+            </Typography>
+            <Typography variant="body2" sx={{ color: "#6B7280" }}>
+              {timeRange}
             </Typography>
           </Box>
 
-          <Chip {...getStatusChipProps(opp.Approval_Status)} />
+          <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+            <Chip {...getStatusChipProps(opp.Approval_Status)} />
+          </Box>
         </Box>
 
         {/* ---- Expanded Details ---- */}
@@ -197,10 +258,12 @@ export default function FacultyDashboard() {
   //                      RENDER UI
   // =========================================================
   return (
-    <Box sx={{ height: "100vh", bgcolor: "#F5F5F7", display: "flex", p: 2 }}>
+    
+    <Box sx={{ height: "100vh", bgcolor: "#F5F5F7", display: "flex", gap: 2, paddingLeft: 3}}>
       <FacultySidebar active="dashboard" />
 
-      <Box sx={{ flex: 1, borderRadius: "30px", bgcolor: "#ffffff", p: 4, overflow: "auto" }}>
+      <Box sx={{ flex: 1, borderRadius: "30px", bgcolor: "#ffffff", p: 4, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+        
         {/* ----- Top Bar ----- */}
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <Typography variant="h5" sx={{ fontWeight: 700, color: "#111827" }}>
@@ -240,7 +303,7 @@ export default function FacultyDashboard() {
         {/* ---- TABS ---- */}
         <Tabs
           value={tab}
-          onChange={(e, v) => setTab(v)}
+          onChange={handleTabChange}
           sx={{ mb: 3 }}
           textColor="primary"
           indicatorColor="primary"
@@ -251,16 +314,47 @@ export default function FacultyDashboard() {
         </Tabs>
         <Divider sx={{ mb: 3 }} />
 
-        {/* ---- TAB CONTENT ---- */}
-        {loading ? (
-          <CircularProgress />
-        ) : tab === 0 ? (
-          pending.map(OpportunityCard)
-        ) : tab === 1 ? (
-          approved.map(OpportunityCard)
-        ) : (
-          rejected.map(OpportunityCard)
-        )}
+        {/* ---- SCROLLABLE OPPORTUNITIES SECTION ---- */}
+        <Box sx={{ flex: 1, overflow: "auto", pr: 2 }}>
+          {loading ? (
+            <CircularProgress />
+          ) : currentData.length === 0 ? (
+            <Box sx={{ textAlign: "center", py: 6 }}>
+              <Typography sx={{ color: "#9CA3AF", fontSize: 16 }}>
+                {tab === 0 && "No pending requests available"}
+                {tab === 1 && "No approved requests available"}
+                {tab === 2 && "No rejected requests available"}
+              </Typography>
+            </Box>
+          ) : (
+            <>
+              {paginatedData.map(OpportunityCard)}
+            </>
+          )}
+        </Box>
+
+        {/* ---- PAGINATION CONTROLS (FIXED AT BOTTOM) ---- */}
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 4, pt: 2, borderTop: "1px solid #E5E7EB" }}>
+          <Button
+            disabled={currentPage === 0}
+            onClick={handlePrevPage}
+            sx={{ textTransform: "none", fontWeight: 600 }}
+          >
+            ← Previous
+          </Button>
+
+          <Typography sx={{ color: "#6B7280", fontWeight: 600 }}>
+            Page {currentPage + 1} of {totalPages}
+          </Typography>
+
+          <Button
+            disabled={currentPage >= totalPages - 1}
+            onClick={handleNextPage}
+            sx={{ textTransform: "none", fontWeight: 600 }}
+          >
+            Next →
+          </Button>
+        </Box>
       </Box>
     </Box>
   );
