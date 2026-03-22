@@ -79,7 +79,7 @@ export default function Welcome() {
           </Typography>
 
           <Typography sx={{ textAlign: "center", mt: 1, opacity: 0.7 }}>
-            Track hours • Find opportunities • Connect with faculty
+            Find opportunities • Track hours • Build Connections
           </Typography>
         </Box>
 

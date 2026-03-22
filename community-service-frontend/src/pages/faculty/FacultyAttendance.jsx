@@ -20,6 +20,7 @@ import {
 
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
+import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 
 import FacultySidebar from "./FacultySidebar";
 
@@ -53,14 +54,9 @@ export default function FacultyAttendance() {
   const [attendanceMap, setAttendanceMap] = useState({});
   const [saving, setSaving] = useState(false);
 
-  // NEW: disable button after submission
   const [submitted, setSubmitted] = useState(false);
-  // const alreadySubmitted = List.some(stu => stu.Attended !== null);
-  // setSubmitted(alreadySubmitted);
-
-  // NEW: control confirmation modal
   const [openConfirm, setOpenConfirm] = useState(false);
-
+  const [openSuccess, setOpenSuccess] = useState(false);
 
   // ---------------------------------------------------
   // 1. Load approved opportunities
@@ -189,7 +185,7 @@ export default function FacultyAttendance() {
       );
 
       setSubmitted(true);
-      alert("Attendance submitted successfully!");
+      setOpenSuccess(true);
 
     } catch (err) {
       console.error("Submit attendance error:", err);
@@ -297,7 +293,6 @@ export default function FacultyAttendance() {
             flexDirection: "column",
           }}
         >
-          {/* Header */}
           <Box
             sx={{
               display: "flex",
@@ -426,39 +421,62 @@ export default function FacultyAttendance() {
           )}
 
           {/* CONFIRMATION MODAL */}
-        <Modal open={openConfirm} onClose={() => setOpenConfirm(false)}>
+          <Modal open={openConfirm} onClose={() => setOpenConfirm(false)}>
             <Box sx={modalStyle}>
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
+              <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
                 Finalize Attendance?
-            </Typography>
+              </Typography>
 
-            <Typography sx={{ color: "#4B5563", mb: 3 }}>
+              <Typography sx={{ color: "#4B5563", mb: 3 }}>
                 Once you submit attendance, <strong>you will not be able to make adjustments</strong>.
                 Are you sure you want to continue?
-            </Typography>
+              </Typography>
 
-            <Stack direction="row" spacing={2} justifyContent="center">
+              <Stack direction="row" spacing={2} justifyContent="center">
                 <Button
-                variant="outlined"
-                sx={{ px: 3 }}
-                onClick={() => setOpenConfirm(false)}
+                  variant="outlined"
+                  sx={{ px: 3 }}
+                  onClick={() => setOpenConfirm(false)}
                 >
-                No
+                  No
                 </Button>
 
                 <Button
-                variant="contained"
-                sx={{ bgcolor: "#0B3D2E", px: 3 }}
-                onClick={confirmSaveAttendance}
+                  variant="contained"
+                  sx={{ bgcolor: "#0B3D2E", px: 3 }}
+                  onClick={confirmSaveAttendance}
                 >
-                Yes, Submit
+                  Yes, Submit
                 </Button>
-            </Stack>
+              </Stack>
             </Box>
-        </Modal>
-        </Paper>
+          </Modal>
 
-        
+          {/* SUCCESS MODAL */}
+          <Modal open={openSuccess} onClose={() => setOpenSuccess(false)}>
+            <Box sx={modalStyle}>
+              <CheckCircleRoundedIcon
+                sx={{ fontSize: 56, color: "#166534", mb: 2 }}
+              />
+
+              <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
+                Attendance Submitted!
+              </Typography>
+
+              <Typography sx={{ color: "#4B5563", mb: 4 }}>
+                Attendance records have been successfully saved. Students will be notified of their hours earned.
+              </Typography>
+
+              <Button
+                variant="contained"
+                sx={{ bgcolor: "#0B3D2E", px: 4 }}
+                onClick={() => setOpenSuccess(false)}
+              >
+                Okay, Got It
+              </Button>
+            </Box>
+          </Modal>
+        </Paper>
       </Box>
     </Box>
   );

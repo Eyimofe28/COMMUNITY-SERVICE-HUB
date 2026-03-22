@@ -10,9 +10,11 @@ import {
   Grid,
   IconButton,
   Modal,
+  Tooltip,
 } from "@mui/material";
 
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
+import InfoRoundedIcon from "@mui/icons-material/InfoRounded";
 import FacultySidebar from "./FacultySidebar";
 
 export default function FacultyCreateOpportunity() {
@@ -195,7 +197,7 @@ export default function FacultyCreateOpportunity() {
               name="Start_Time"
               value={form.Start_Time}
               onChange={handleChange}
-              inputProps={{ step: 3600 }}   // ⬅ Only hourly increments
+              inputProps={{ step: 3600 }}   // ⬅ Only hourly increments  
             />
           </Grid>
 
@@ -211,6 +213,11 @@ export default function FacultyCreateOpportunity() {
               inputProps={{ step: 3600 }}   // ⬅ Only hourly
             />
           </Grid>
+          
+          {/* Info tooltip about time format */}
+          <Tooltip title="24 Hour Format Timing" arrow>
+                <InfoRoundedIcon sx={{ fontSize: 20, color: "#0B3D2E", cursor: "pointer" }} />
+          </Tooltip>
 
           {/* Duration */}
           <Grid item xs={12} md={6}>

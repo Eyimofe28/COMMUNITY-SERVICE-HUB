@@ -35,7 +35,12 @@ export default function FacultyMessages() {
         res.data ||
         [];
 
-      setConversations(rows);
+      // Filter to show only Approved and Pending
+      const filtered = rows.filter(
+        (opp) => opp.Approval_Status === "Approved" || opp.Approval_Status === "Pending"
+      );
+
+      setConversations(filtered);
     } catch (error) {
       console.error("Conversation Load Error:", error);
     }
@@ -123,32 +128,38 @@ export default function FacultyMessages() {
             Conversations
           </Typography>
 
-          {conversations.map((opp) => (
-            <Box
-              key={opp.Opportunity_ID}
-              onClick={() => handleSelectConversation(opp)}
-              sx={{
-                p: 2,
-                mb: 1.5,
-                borderRadius: "16px",
-                cursor: "pointer",
-                bgcolor:
-                  selectedOpp?.Opportunity_ID === opp.Opportunity_ID
-                    ? "#E8F5ED"
-                    : "#fff",
-                "&:hover": { bgcolor: "#F1F5F4" },
-                border: "1px solid #e5e5e5",
-              }}
-            >
-              <Typography sx={{ fontWeight: 700 }}>
-                {opp.Title}
-              </Typography>
+          {conversations.length === 0 ? (
+            <Typography sx={{ color: "#9CA3AF" }}>
+              No active conversations yet.
+            </Typography>
+          ) : (
+            conversations.map((opp) => (
+              <Box
+                key={opp.Opportunity_ID}
+                onClick={() => handleSelectConversation(opp)}
+                sx={{
+                  p: 2,
+                  mb: 1.5,
+                  borderRadius: "16px",
+                  cursor: "pointer",
+                  bgcolor:
+                    selectedOpp?.Opportunity_ID === opp.Opportunity_ID
+                      ? "#E8F5ED"
+                      : "#fff",
+                  "&:hover": { bgcolor: "#F1F5F4" },
+                  border: "1px solid #e5e5e5",
+                }}
+              >
+                <Typography sx={{ fontWeight: 700 }}>
+                  {opp.Title}
+                </Typography>
 
-              <Typography sx={{ fontSize: 13, color: "#6B7280" }}>
-                Status: {opp.Approval_Status}
-              </Typography>
-            </Box>
-          ))}
+                <Typography sx={{ fontSize: 13, color: "#6B7280" }}>
+                  Status: {opp.Approval_Status}
+                </Typography>
+              </Box>
+            ))
+          )}
         </Box>
 
         {/* RIGHT — Messages */}

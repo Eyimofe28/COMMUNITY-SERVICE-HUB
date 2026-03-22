@@ -201,7 +201,7 @@ export default function ApproverDashboard() {
         <Divider sx={{ mb: 3, flexShrink: 0 }} />
         
         {/* SCROLLABLE TAB CONTENT CONTAINER */}
-        <Box sx={{ flex: 1, overflow: "auto", pr: 2, pb: 4.5 }}>
+        <Box sx={{ flex: 1, overflow: "auto", pr: 2, pb: 5.5 }}>
           {/* TAB CONTENT */}
           {tab === 0 && (
             <>
