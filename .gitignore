@@ -3,3 +3,8 @@ node_modules/
 
 # Secrets
 .env
+community-service-backend/ssl/
+
+# Server runtime files (created by deploy/ scripts)
+backend.log
+backend.pid

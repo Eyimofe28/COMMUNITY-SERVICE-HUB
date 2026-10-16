@@ -110,7 +110,7 @@ export default function FacultyCreateOpportunity() {
       await api.post("/opportunity/create", payload);
 
 
-      window.location.href = "/faculty/dashboard";
+      window.location.href = `${process.env.PUBLIC_URL}/faculty/dashboard`;
     } catch (err) {
       showError(err.response?.data?.message || "Failed to create opportunity.");
     } finally {

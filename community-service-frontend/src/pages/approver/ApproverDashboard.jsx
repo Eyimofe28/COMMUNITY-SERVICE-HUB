@@ -38,7 +38,7 @@ export default function ApproverDashboard() {
   const [tab, setTab] = useState(0);
   const handleLogout = () => {
     localStorage.clear();
-    window.location.href = "/login";
+    window.location.href = `${process.env.PUBLIC_URL}/login`;
   };
 
   // Get Pending opportunities

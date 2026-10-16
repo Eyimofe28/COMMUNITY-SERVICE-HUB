@@ -147,7 +147,7 @@ export default function StudentDashboard() {
     localStorage.removeItem("token");
     localStorage.removeItem("firstName");
     localStorage.removeItem("role");
-    window.location.href = "/login";
+    window.location.href = `${process.env.PUBLIC_URL}/login`;
   };
 
   return (
@@ -191,7 +191,7 @@ export default function StudentDashboard() {
             }}
             onClick={() => {
                 setShowModal(false);
-                window.location.href = "/student/registered";
+                window.location.href = `${process.env.PUBLIC_URL}/student/registered`;
             }}
             >
             Go to Registered Opportunities
