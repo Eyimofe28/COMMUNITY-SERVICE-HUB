@@ -36,9 +36,20 @@ npm ci --omit=dev
 echo "==> Building frontend"
 (cd community-service-frontend && npm ci && npm run build)
 
-echo "==> Publishing frontend to ~/public_html"
-mkdir -p "$HOME/public_html"
-cp -r community-service-frontend/build/. "$HOME/public_html/"
+# Publish into the folder that matches PUBLIC_URL:
+#   PUBLIC_URL=/~username/community-service-hub  ->  ~/public_html/community-service-hub/
+#   PUBLIC_URL=/~username                        ->  ~/public_html/
+PUBLIC_URL="$(grep -E '^PUBLIC_URL=' community-service-frontend/.env.production.local | tail -n 1 | cut -d= -f2- | tr -d '\r"')"
+SUBFOLDER="$(echo "$PUBLIC_URL" | sed -E 's#^/~[^/]+##; s#/+$##')"
+TARGET="$HOME/public_html$SUBFOLDER"
+
+echo "==> Publishing frontend to $TARGET"
+if [ -n "$SUBFOLDER" ]; then
+  # The app owns this sub-folder, so clear out the previous build first
+  rm -rf "$TARGET"
+fi
+mkdir -p "$TARGET"
+cp -r community-service-frontend/build/. "$TARGET/"
 
 echo "==> Restarting backend"
 bash deploy/start-backend.sh
