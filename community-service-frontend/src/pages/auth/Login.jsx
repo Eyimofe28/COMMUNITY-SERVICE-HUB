@@ -2,7 +2,7 @@ import { Box, Button, TextField, Typography, Paper, Link, IconButton } from "@mu
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
-import axios from "axios";
+import api from "../../api/axios";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -12,7 +12,7 @@ export default function Login() {
 
   const handleLogin = async () => {
   try {
-    const res = await axios.post("http://localhost:5000/api/auth/login", {
+    const res = await api.post("/auth/login", {
       email,
       password
     });
@@ -44,7 +44,7 @@ export default function Login() {
 
   // const handleLogin = async () => {
   //   try {
-  //     const res = await axios.post("http://localhost:5000/api/auth/login", {
+  //     const res = await api.post("/auth/login", {
   //       email,
   //       password
   //     });

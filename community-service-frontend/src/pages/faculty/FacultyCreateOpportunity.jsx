@@ -1,6 +1,6 @@
 // src/pages/FacultyCreateOpportunity.jsx
 import { useState } from "react";
-import axios from "axios";
+import api from "../../api/axios";
 import {
   Box,
   Paper,
@@ -18,8 +18,6 @@ import InfoRoundedIcon from "@mui/icons-material/InfoRounded";
 import FacultySidebar from "./FacultySidebar";
 
 export default function FacultyCreateOpportunity() {
-  const token = localStorage.getItem("token");
-
   const [form, setForm] = useState({
     Title: "",
     Description: "",
@@ -109,9 +107,7 @@ export default function FacultyCreateOpportunity() {
 
 
 
-      await axios.post("http://localhost:5000/api/opportunity/create", payload, {
-          headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.post("/opportunity/create", payload);
 
 
       window.location.href = "/faculty/dashboard";

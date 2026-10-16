@@ -18,8 +18,8 @@ module.exports = async (req, res, next) => {
         // decoded contains { userId, role }
 
         // Fetch full user record from database
-        const [rows] = await db.query(
-            "SELECT * FROM Users WHERE User_ID = ?",
+        const { rows } = await db.query(
+            'SELECT * FROM users WHERE "User_ID" = $1',
             [decoded.userId]
         );
 

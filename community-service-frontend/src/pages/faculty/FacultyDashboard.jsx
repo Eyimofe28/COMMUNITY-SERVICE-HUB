@@ -1,6 +1,6 @@
 // src/pages/faculty/FacultyDashboard.jsx
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../../api/axios";
 
 import {
   Box,
@@ -70,9 +70,8 @@ export default function FacultyDashboard() {
     const fetchSubmissions = async () => {
       setLoading(true);
       try {
-        const res = await axios.get(
-          "http://localhost:5000/api/opportunity/my-submissions",
-          { headers: { Authorization: `Bearer ${token}` } }
+        const res = await api.get(
+          "/opportunity/my-submissions"
         );
 
         const rows = res.data.submissions || [];

@@ -1,6 +1,6 @@
 // src/pages/RegisteredOpportunities.jsx
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../../api/axios";
 
 import {
   Box,
@@ -56,14 +56,13 @@ export default function RegisteredOpportunities() {
   useEffect(() => {
   const fetchRegistered = async () => {
     try {
-      const res = await axios.get(
-        "http://localhost:5000/api/opportunity/my-registrations",
-        { headers: { Authorization: `Bearer ${token}` } }
+      const res = await api.get(
+        "/opportunity/my-registrations"
       );
 
-      // Only keep opportunities where Attended !== 1
+      // Only keep opportunities where Attended !== true
       const notCompleted = (res.data.opportunities || []).filter(
-        (opp) => opp.Attended !== 1
+        (opp) => opp.Attended !== true
       );
 
       setRegistered(notCompleted);
@@ -84,9 +83,8 @@ export default function RegisteredOpportunities() {
     setUnregisteringId(opportunityId);
 
     try {
-      await axios.delete(
-        `http://localhost:5000/api/opportunity/unregister/${opportunityId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+      await api.delete(
+        `/opportunity/unregister/${opportunityId}`
       );
 
       // Remove opportunity from UI instantly

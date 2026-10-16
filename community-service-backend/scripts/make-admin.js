@@ -12,8 +12,8 @@ const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, "..", ".env"), quiet: true });
 
 const bcrypt = require("bcrypt");
-const crypto = require("crypto");
 const db = require("../config/db");
+const { generatePassword } = require("../utils/passwordPolicy");
 
 async function main() {
     const [emailArg, firstName, lastName] = process.argv.slice(2);
@@ -39,10 +39,10 @@ async function main() {
         return;
     }
 
-    const tempPassword = crypto.randomBytes(9).toString("base64url");
+    const tempPassword = generatePassword();
     const hashed = await bcrypt.hash(tempPassword, 10);
 
-    const [rows] = await db.query("SELECT User_ID, Role FROM Users WHERE Email = ?", [email]);
+    const { rows } = await db.query('SELECT "User_ID", "Role" FROM users WHERE "Email" = $1', [email]);
 
     if (rows.length > 0) {
         if (rows[0].Role !== "admin") {
@@ -51,7 +51,7 @@ async function main() {
             return;
         }
 
-        await db.query("UPDATE Users SET Password_Hash = ? WHERE User_ID = ?", [hashed, rows[0].User_ID]);
+        await db.query('UPDATE users SET "Password_Hash" = $1 WHERE "User_ID" = $2', [hashed, rows[0].User_ID]);
         console.log(`Password reset for existing admin ${email}.`);
     } else {
         if (!firstName || !lastName) {
@@ -62,7 +62,8 @@ async function main() {
         }
 
         await db.query(
-            "INSERT INTO Users (First_Name, Last_Name, Email, Password_Hash, Role) VALUES (?, ?, ?, ?, 'admin')",
+            `INSERT INTO users ("First_Name", "Last_Name", "Email", "Password_Hash", "Role")
+             VALUES ($1, $2, $3, $4, 'admin')`,
             [firstName.trim(), lastName.trim(), email, hashed]
         );
         console.log(`Admin account created for ${email}.`);

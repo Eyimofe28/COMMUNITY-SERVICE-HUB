@@ -2,7 +2,9 @@ import { Box, Button, TextField, Typography, Paper, IconButton } from "@mui/mate
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../../api/axios";
+import PasswordRequirements from "../../components/PasswordRequirements";
+import { isPasswordValid } from "../../utils/passwordRules";
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -22,7 +24,7 @@ export default function Signup() {
 
   const handleSignup = async () => {
     try {
-      await axios.post("http://localhost:5000/api/auth/signup", form);
+      await api.post("/auth/signup", form);
       alert("Account created! You can now log in.");
       navigate("/login");
     } catch (error) {
@@ -123,9 +125,13 @@ export default function Signup() {
           name="password"
           type="password"
           fullWidth
-          sx={{ mb: 2 }}
+          sx={{ mb: 1 }}
           onChange={handleChange}
         />
+
+        <Box sx={{ mb: 2, px: 0.5 }}>
+          <PasswordRequirements password={form.password} />
+        </Box>
 
         <TextField
           label="Role"
@@ -151,7 +157,13 @@ export default function Signup() {
         )}
 
         {/* SUBMIT BUTTON */}
-        <Button variant="contained" fullWidth sx={{ py: 1.4, fontSize: "1rem" }} onClick={handleSignup}>
+        <Button
+          variant="contained"
+          fullWidth
+          sx={{ py: 1.4, fontSize: "1rem" }}
+          disabled={!isPasswordValid(form.password)}
+          onClick={handleSignup}
+        >
           Continue
         </Button>
       </Paper>

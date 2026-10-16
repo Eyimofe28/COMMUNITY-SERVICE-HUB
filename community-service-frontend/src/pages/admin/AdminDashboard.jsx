@@ -22,6 +22,8 @@ import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import AdminPanelSettingsRoundedIcon from "@mui/icons-material/AdminPanelSettingsRounded";
 
 import api from "../../api/axios";
+import PasswordRequirements from "../../components/PasswordRequirements";
+import { isPasswordValid } from "../../utils/passwordRules";
 
 const emptyAdminForm = { firstName: "", lastName: "", email: "", password: "" };
 const emptyPasswordForm = { currentPassword: "", newPassword: "", confirmPassword: "" };
@@ -279,15 +281,16 @@ export default function AdminDashboard() {
               />
               <TextField
                 fullWidth
-                label="Temporary Password (min. 8 characters)"
+                label="Temporary Password"
                 name="password"
                 type="password"
                 value={adminForm.password}
                 onChange={handleAdminFormChange}
               />
+              <PasswordRequirements password={adminForm.password} />
               <Button
                 variant="contained"
-                disabled={creating}
+                disabled={creating || !isPasswordValid(adminForm.password)}
                 onClick={handleCreateAdmin}
                 sx={{ bgcolor: "#0B3D2E", py: 1.2, "&:hover": { bgcolor: "#0d4d38" } }}
               >
@@ -318,12 +321,13 @@ export default function AdminDashboard() {
               />
               <TextField
                 fullWidth
-                label="New Password (min. 8 characters)"
+                label="New Password"
                 name="newPassword"
                 type="password"
                 value={passwordForm.newPassword}
                 onChange={handlePasswordFormChange}
               />
+              <PasswordRequirements password={passwordForm.newPassword} />
               <TextField
                 fullWidth
                 label="Confirm New Password"
@@ -334,7 +338,7 @@ export default function AdminDashboard() {
               />
               <Button
                 variant="contained"
-                disabled={changingPassword}
+                disabled={changingPassword || !isPasswordValid(passwordForm.newPassword)}
                 onClick={handleChangePassword}
                 sx={{ bgcolor: "#0B3D2E", py: 1.2, "&:hover": { bgcolor: "#0d4d38" } }}
               >
