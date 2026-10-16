@@ -1,0 +1,80 @@
+// Creates an admin account, or resets the password of an existing admin.
+//
+// Run from the project root (requires access to the server and its .env):
+//   npm run make-admin -- someone@mvsu.edu "First" "Last"   -> create a new admin
+//   npm run make-admin -- someone@mvsu.edu                   -> reset an existing admin's password
+//
+// Use this to create the very FIRST admin on a fresh install, or to recover
+// access if every admin has left / forgotten their password. Day-to-day admin
+// management (adding/removing admins) is done from the Admin page in the app.
+
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, "..", ".env"), quiet: true });
+
+const bcrypt = require("bcrypt");
+const crypto = require("crypto");
+const db = require("../config/db");
+
+async function main() {
+    const [emailArg, firstName, lastName] = process.argv.slice(2);
+
+    if (!emailArg) {
+        console.log('Usage: npm run make-admin -- <email@mvsu.edu> ["First" "Last"]');
+        process.exitCode = 1;
+        return;
+    }
+
+    const email = emailArg.trim().toLowerCase();
+    if (!email.includes("@")) {
+        console.log(`Error: "${emailArg}" is not an email address.`);
+        console.log('Make sure there is a space after the "--":');
+        console.log('  npm run make-admin -- someone@mvsu.edu "First" "Last"');
+        process.exitCode = 1;
+        return;
+    }
+
+    if (!email.endsWith("@mvsu.edu")) {
+        console.log("Error: only mvsu.edu emails are allowed.");
+        process.exitCode = 1;
+        return;
+    }
+
+    const tempPassword = crypto.randomBytes(9).toString("base64url");
+    const hashed = await bcrypt.hash(tempPassword, 10);
+
+    const [rows] = await db.query("SELECT User_ID, Role FROM Users WHERE Email = ?", [email]);
+
+    if (rows.length > 0) {
+        if (rows[0].Role !== "admin") {
+            console.log(`Error: ${email} already exists as a ${rows[0].Role} account and cannot be made an admin.`);
+            process.exitCode = 1;
+            return;
+        }
+
+        await db.query("UPDATE Users SET Password_Hash = ? WHERE User_ID = ?", [hashed, rows[0].User_ID]);
+        console.log(`Password reset for existing admin ${email}.`);
+    } else {
+        if (!firstName || !lastName) {
+            console.log("Error: first and last name are required to create a new admin.");
+            console.log('Usage: npm run make-admin -- <email@mvsu.edu> "First" "Last"');
+            process.exitCode = 1;
+            return;
+        }
+
+        await db.query(
+            "INSERT INTO Users (First_Name, Last_Name, Email, Password_Hash, Role) VALUES (?, ?, ?, ?, 'admin')",
+            [firstName.trim(), lastName.trim(), email, hashed]
+        );
+        console.log(`Admin account created for ${email}.`);
+    }
+
+    console.log(`Temporary password: ${tempPassword}`);
+    console.log("Log in and change this password from the Admin page right away.");
+}
+
+main()
+    .catch((error) => {
+        console.error("make-admin failed:", error.message);
+        process.exitCode = 1;
+    })
+    .finally(() => db.end());

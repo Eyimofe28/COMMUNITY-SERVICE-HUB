@@ -33,6 +33,7 @@ export default function Login() {
     if (role === "student") navigate("/student/dashboard");
     else if (role === "approver") navigate("/approver/dashboard");
     else if (role === "faculty") navigate("/faculty/dashboard");
+    else if (role === "admin") navigate("/admin/dashboard");
     else navigate("/welcome");
 
   } catch (error) {

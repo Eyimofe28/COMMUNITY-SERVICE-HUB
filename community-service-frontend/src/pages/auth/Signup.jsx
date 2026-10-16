@@ -22,9 +22,9 @@ export default function Signup() {
 
   const handleSignup = async () => {
     try {
-      // console.log("FORM SENT:", form);
       await axios.post("http://localhost:5000/api/auth/signup", form);
-      navigate(`/verify?email=${form.email}`);
+      alert("Account created! You can now log in.");
+      navigate("/login");
     } catch (error) {
       alert(error.response?.data?.message || "Signup failed.");
     }

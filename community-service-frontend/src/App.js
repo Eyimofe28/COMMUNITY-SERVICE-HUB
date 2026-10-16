@@ -7,7 +7,6 @@ import Splash from "./pages/auth/Splash";
 import Welcome from "./pages/auth/Welcome";
 import Login from "./pages/auth/Login";
 import Signup from "./pages/auth/Signup";
-import Verify from "./pages/auth/Verify";
 import RegisteredOpportunities from "./pages/student/RegisteredOpportunities";
 import CompletedOpportunities from "./pages/student/CompletedOpportunities";
 import StudentMessages from "./pages/student/StudentMessages";
@@ -21,6 +20,7 @@ import FacultyAttendance from "./pages/faculty/FacultyAttendance";
 import StudentDashboard from "./pages/student/studentDashboard";
 import FacultyDashboard from "./pages/faculty/FacultyDashboard";
 import ApproverDashboard from "./pages/approver/ApproverDashboard";
+import AdminDashboard from "./pages/admin/AdminDashboard";
 
 function App() {
   return (
@@ -32,7 +32,6 @@ function App() {
           <Route path="/welcome" element={<Welcome />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
-          <Route path="/verify" element={<Verify />} />
 
           {/* ✅ Student dashboard route */}
           <Route path="/student/dashboard" element={<StudentDashboard />} />
@@ -48,6 +47,9 @@ function App() {
 
           {/* ✅ Approver dashboard route */}
           <Route path="/approver/dashboard" element={<ApproverDashboard />} />
+
+          {/* Admin dashboard route */}
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
         </Routes>
       </BrowserRouter>
     </ThemeProvider>

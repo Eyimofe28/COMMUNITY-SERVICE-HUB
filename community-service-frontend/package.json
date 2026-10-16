@@ -41,5 +41,11 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "baseline-browser-mapping": "^2.11.28"
+  },
+  "overrides": {
+    "typescript": "^4.9.5"
   }
 }

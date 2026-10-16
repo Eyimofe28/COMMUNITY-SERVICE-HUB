@@ -1,21 +1,22 @@
 const bcrypt = require("bcrypt");
-const crypto = require("crypto");
 const db = require("../config/db");
-const verificationStore = require("../utils/verificationStore");
-const { sendVerificationEmail } = require("../utils/emailService");
 
+// NOTE: Email verification was removed (MVSU's mail filter blocks the codes).
+// Accounts are created immediately. Admin approval of new accounts is planned.
 exports.signup = async (req, res) => {
     const { email, password, role, firstName, lastName, department } = req.body;
 
+    let conn;
     try {
         // Check inputs
         if (!email || !password || !role || !firstName || !lastName) {
             return res.status(400).json({ message: "Missing required fields." });
         }
 
+        const normalizedEmail = email.trim().toLowerCase();
+
         // Validate MVSU email domain
-        const domain = email.split("@")[1];
-        if (domain !== "mvsu.edu") {
+        if (!normalizedEmail.endsWith("@mvsu.edu")) {
             return res.status(400).json({ message: "Only mvsu.edu emails are allowed." });
         }
 
@@ -24,96 +25,53 @@ exports.signup = async (req, res) => {
             return res.status(400).json({ message: "Invalid role." });
         }
 
+        if (password.length < 8) {
+            return res.status(400).json({ message: "Password must be at least 8 characters." });
+        }
+
         // Check if email already exists
-        const [existing] = await db.query("SELECT * FROM Users WHERE Email = ?", [email]);
+        const [existing] = await db.query("SELECT User_ID FROM Users WHERE Email = ?", [normalizedEmail]);
         if (existing.length > 0) {
             return res.status(400).json({ message: "Email already registered." });
         }
 
-        // Generate verification code
-        const verificationCode = crypto.randomInt(100000, 999999).toString();
-        console.log("📌 Verification code for testing:", verificationCode);
-
-
-        // Store temporarily in-memory
-        verificationStore.set(email, {
-            code: verificationCode,
-            expires: Date.now() + 10 * 60 * 1000,
-            userData: { email, password, role, firstName, lastName, department }
-        });
-
-        // Send email
-        await sendVerificationEmail(email, verificationCode);
-
-        return res.status(200).json({
-            message: "Verification code sent to your MVSU email.",
-            email
-        });
-
-    } catch (error) {
-        console.error("Signup Error:", error);
-        return res.status(500).json({ message: "Server error during signup." });
-    }
-};
-
-exports.verifyCode = async (req, res) => {
-    const { email, code } = req.body;
-
-    try {
-        // Retrieve in-memory entry
-        const entry = verificationStore.get(email);
-
-        if (!entry) {
-            return res.status(400).json({ message: "No verification request found." });
-        }
-
-        // Check expiration
-        if (Date.now() > entry.expires) {
-            verificationStore.delete(email);
-            return res.status(400).json({ message: "Verification code expired." });
-        }
-
-        // Check code
-        if (entry.code !== code) {
-            return res.status(400).json({ message: "Invalid verification code." });
-        }
-
-        const { email: userEmail, password, role, firstName, lastName, department } = entry.userData;
-
-        // Hash password
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Insert into Users table
-        const [userInsert] = await db.query(
+        // Users row + subtype row are created together or not at all
+        conn = await db.getConnection();
+        await conn.beginTransaction();
+
+        const [userInsert] = await conn.query(
             "INSERT INTO Users (First_Name, Last_Name, Email, Password_Hash, Role) VALUES (?, ?, ?, ?, ?)",
-            [firstName, lastName, userEmail, hashedPassword, role]
+            [firstName.trim(), lastName.trim(), normalizedEmail, hashedPassword, role]
         );
 
         const userId = userInsert.insertId;
 
-        // Insert subtype
         if (role === "student") {
-            await db.query(
+            await conn.query(
                 "INSERT INTO Student (User_ID, Service_Hours_Total) VALUES (?, 0)",
                 [userId]
             );
         }
 
         if (role === "faculty") {
-            await db.query(
+            await conn.query(
                 "INSERT INTO Faculty (User_ID, Faculty_Dept, Approver) VALUES (?, ?, false)",
                 [userId, department || null]
             );
         }
 
-        // Delete from memory
-        verificationStore.delete(email);
+        await conn.commit();
 
-        return res.status(201).json({ message: "Email verified — account created." });
+        return res.status(201).json({ message: "Account created. You can now log in." });
 
     } catch (error) {
-        console.error("Verification Error:", error);
-        return res.status(500).json({ message: "Server error during verification." });
+        if (conn) await conn.rollback();
+        console.error("Signup Error:", error);
+        return res.status(500).json({ message: "Server error during signup." });
+    } finally {
+        if (conn) conn.release();
     }
 };
 
@@ -195,5 +153,36 @@ exports.login = async (req, res) => {
   } catch (error) {
     console.error("Login Error:", error);
     return res.status(500).json({ message: "Server error during login." });
+  }
+};
+
+exports.changePassword = async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+
+  try {
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: "Current and new password are required." });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({ message: "New password must be at least 8 characters." });
+    }
+
+    const match = await bcrypt.compare(currentPassword, req.user.info.Password_Hash);
+    if (!match) {
+      return res.status(400).json({ message: "Current password is incorrect." });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await db.query("UPDATE Users SET Password_Hash = ? WHERE User_ID = ?", [
+      hashedPassword,
+      req.user.userId,
+    ]);
+
+    return res.status(200).json({ message: "Password changed successfully." });
+
+  } catch (error) {
+    console.error("Change Password Error:", error);
+    return res.status(500).json({ message: "Server error while changing password." });
   }
 };
