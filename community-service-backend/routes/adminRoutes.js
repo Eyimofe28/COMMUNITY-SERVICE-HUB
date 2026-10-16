@@ -5,11 +5,15 @@ const auth = require("../middleware/authMiddleware");
 const { isAdmin } = require("../middleware/roleMiddleware");
 const adminController = require("../controllers/adminController");
 
+// List admins
+router.get("/admins", auth, isAdmin, adminController.getAdmins);
+
 // Create admin (you must already be an admin to use this)
+// The FIRST admin is created on the server with `npm run make-admin`.
 router.post("/create-admin", auth, isAdmin, adminController.createAdmin);
 
-// First admin bootstrap (disabled automatically after use)
-router.post("/bootstrap-admin", adminController.bootstrapAdmin);
+// Remove an admin (refuses to remove the last admin)
+router.delete("/admins/:userId", auth, isAdmin, adminController.removeAdmin);
 
 // View all users
 router.get("/users", auth, isAdmin, adminController.getAllUsers);

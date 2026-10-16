@@ -1,38 +1,26 @@
 const bcrypt = require("bcrypt");
 const db = require("../config/db");
 
-let bootstrapUsed = false; // prevents multiple uses
+// NOTE: The FIRST admin is created from the server with `npm run make-admin`
+// (see community-service-backend/scripts/make-admin.js). There is intentionally
+// no public HTTP endpoint for creating an admin without being logged in.
 
-// Create the FIRST admin (no auth required ONCE)
-exports.bootstrapAdmin = async (req, res) => {
+const MIN_PASSWORD_LENGTH = 8;
+
+// List all admins
+exports.getAdmins = async (req, res) => {
     try {
-        if (bootstrapUsed) {
-            return res.status(403).json({ message: "Bootstrap already used." });
-        }
-
-        const { email, password, firstName, lastName } = req.body;
-
-        if (!email || !password || !firstName || !lastName) {
-            return res.status(400).json({ message: "Missing required fields." });
-        }
-
-        const hashed = await bcrypt.hash(password, 10);
-
-        const [user] = await db.query(
-            "INSERT INTO Users (First_Name, Last_Name, Email, Password_Hash, Role) VALUES (?, ?, ?, ?, 'admin')",
-            [firstName, lastName, email, hashed]
+        const [rows] = await db.query(
+            "SELECT User_ID, First_Name, Last_Name, Email FROM Users WHERE Role = 'admin' ORDER BY Last_Name, First_Name"
         );
 
-        const userId = user.insertId;
-
-        // You can create a future Admin table if needed, but not required now
-        bootstrapUsed = true;
-
-        return res.status(201).json({ message: "Master Admin created.", userId });
-
+        return res.status(200).json({
+            message: "Admins retrieved successfully.",
+            admins: rows
+        });
     } catch (error) {
-        console.error("Bootstrap Admin Error:", error);
-        return res.status(500).json({ message: "Server error creating admin." });
+        console.error("Get Admins Error:", error);
+        return res.status(500).json({ message: "Server error retrieving admins." });
     }
 };
 
@@ -45,11 +33,28 @@ exports.createAdmin = async (req, res) => {
             return res.status(400).json({ message: "Missing required fields." });
         }
 
+        const normalizedEmail = email.trim().toLowerCase();
+
+        if (!normalizedEmail.endsWith("@mvsu.edu")) {
+            return res.status(400).json({ message: "Only mvsu.edu emails are allowed." });
+        }
+
+        if (password.length < MIN_PASSWORD_LENGTH) {
+            return res.status(400).json({
+                message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`
+            });
+        }
+
+        const [existing] = await db.query("SELECT User_ID FROM Users WHERE Email = ?", [normalizedEmail]);
+        if (existing.length > 0) {
+            return res.status(409).json({ message: "An account with this email already exists." });
+        }
+
         const hashed = await bcrypt.hash(password, 10);
 
-        const [user] = await db.query(
+        await db.query(
             "INSERT INTO Users (First_Name, Last_Name, Email, Password_Hash, Role) VALUES (?, ?, ?, ?, 'admin')",
-            [firstName, lastName, email, hashed]
+            [firstName.trim(), lastName.trim(), normalizedEmail, hashed]
         );
 
         return res.status(201).json({ message: "Admin created successfully." });
@@ -57,6 +62,44 @@ exports.createAdmin = async (req, res) => {
     } catch (error) {
         console.error("Create Admin Error:", error);
         return res.status(500).json({ message: "Server error creating admin." });
+    }
+};
+
+// Remove an admin account (used to hand off / revoke admin access).
+// The last remaining admin can never be removed.
+exports.removeAdmin = async (req, res) => {
+    try {
+        const targetId = Number(req.params.userId);
+
+        const [target] = await db.query(
+            "SELECT User_ID FROM Users WHERE User_ID = ? AND Role = 'admin'",
+            [targetId]
+        );
+
+        if (target.length === 0) {
+            return res.status(404).json({ message: "Admin not found." });
+        }
+
+        const [[{ adminCount }]] = await db.query(
+            "SELECT COUNT(*) AS adminCount FROM Users WHERE Role = 'admin'"
+        );
+
+        if (adminCount <= 1) {
+            return res.status(409).json({
+                message: "You cannot remove the last admin. Add another admin first."
+            });
+        }
+
+        await db.query("DELETE FROM Users WHERE User_ID = ? AND Role = 'admin'", [targetId]);
+
+        return res.status(200).json({
+            message: "Admin removed successfully.",
+            removedSelf: targetId === req.user.userId
+        });
+
+    } catch (error) {
+        console.error("Remove Admin Error:", error);
+        return res.status(500).json({ message: "Server error removing admin." });
     }
 };
 
