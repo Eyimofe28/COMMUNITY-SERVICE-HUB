@@ -1,7 +1,6 @@
-const bcrypt = require("bcrypt");
 const db = require("../config/db");
-const { validatePassword } = require("../utils/passwordPolicy");
-const { validateName, validateEmail } = require("../utils/validation");
+const { validatePassword, hashPassword } = require("../utils/passwordPolicy");
+const { normalizeEmail, validateName, validateEmail } = require("../utils/validation");
 
 // NOTE: The FIRST admin is created from the server with `npm run make-admin`
 // (see community-service-backend/scripts/make-admin.js). There is intentionally
@@ -34,7 +33,7 @@ exports.createAdmin = async (req, res) => {
             return res.status(400).json({ message: "Missing required fields." });
         }
 
-        const normalizedEmail = String(email).trim().toLowerCase();
+        const normalizedEmail = normalizeEmail(email);
 
         const inputError =
             validateName(firstName, "First name") ||
@@ -54,7 +53,7 @@ exports.createAdmin = async (req, res) => {
             return res.status(409).json({ message: "An account with this email already exists." });
         }
 
-        const hashed = await bcrypt.hash(password, 10);
+        const hashed = await hashPassword(password);
 
         await db.query(
             `INSERT INTO users ("First_Name", "Last_Name", "Email", "Password_Hash", "Role")

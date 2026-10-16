@@ -6,12 +6,9 @@ import DriveFileRenameOutlineRoundedIcon from "@mui/icons-material/DriveFileRena
 import MailOutlineRoundedIcon from "@mui/icons-material/MailOutlineRounded";
 import ChecklistRoundedIcon from "@mui/icons-material/ChecklistRounded";   // ✅ NEW
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
+import { logout } from "../../utils/auth";
 
 export default function FacultySidebar({ active }) {
-  const handleLogout = () => {
-    localStorage.clear();
-    window.location.href = `${process.env.PUBLIC_URL}/login`;
-  };
 
   const navItems = [
     { icon: <HomeRoundedIcon />, route: "/faculty/dashboard", key: "dashboard" },
@@ -85,7 +82,7 @@ export default function FacultySidebar({ active }) {
       </Stack>
 
       {/* Logout */}
-      <IconButton sx={{ color: "#fff", mt: 2 }} onClick={handleLogout}>
+      <IconButton sx={{ color: "#fff", mt: 2 }} onClick={() => logout()}>
         <LogoutRoundedIcon />
       </IconButton>
     </Box>

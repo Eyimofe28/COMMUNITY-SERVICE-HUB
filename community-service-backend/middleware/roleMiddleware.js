@@ -1,3 +1,14 @@
+// =============================================================================
+// Role checks (authorization) - run AFTER authMiddleware on protected routes
+// -----------------------------------------------------------------------------
+// Usage: router.post(path, auth, isStudent, handler)
+//
+// SECURITY: logging in proves WHO the user is; these checks decide WHAT they may
+//   do. Each route lists the role it needs, and anyone else gets 403 Forbidden.
+//   The role comes from the signed login token, so it cannot be edited by the user.
+// REUSABILITY: small middleware functions reused across all route files.
+// =============================================================================
+
 const db = require("../config/db");
 
 // STUDENT ONLY

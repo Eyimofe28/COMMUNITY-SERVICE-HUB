@@ -143,12 +143,6 @@ export default function StudentDashboard() {
 };
 
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("firstName");
-    localStorage.removeItem("role");
-    window.location.href = `${process.env.PUBLIC_URL}/login`;
-  };
 
   return (
     

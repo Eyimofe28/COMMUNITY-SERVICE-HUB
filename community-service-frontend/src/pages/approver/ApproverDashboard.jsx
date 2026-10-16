@@ -24,6 +24,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
 import TextField from "@mui/material/TextField";
+import { logout } from "../../utils/auth";
 
 export default function ApproverDashboard() {
   const firstName = localStorage.getItem("firstName") || "Approver";
@@ -36,10 +37,6 @@ export default function ApproverDashboard() {
   const [pending, setPending] = useState([]);
   const [approved, setApproved] = useState([]);
   const [tab, setTab] = useState(0);
-  const handleLogout = () => {
-    localStorage.clear();
-    window.location.href = `${process.env.PUBLIC_URL}/login`;
-  };
 
   // Get Pending opportunities
   const loadPending = async () => {
@@ -141,7 +138,7 @@ export default function ApproverDashboard() {
             Dashboard
           </Typography>
 
-          <IconButton sx={{ color: "#111010ff", mt: 2 }} onClick={handleLogout}>
+          <IconButton sx={{ color: "#111010ff", mt: 2 }} onClick={() => logout()}>
             <LogoutRoundedIcon />
           </IconButton>
         </Box>

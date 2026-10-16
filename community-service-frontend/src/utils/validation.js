@@ -1,5 +1,14 @@
-// Input rules for account fields (keep in sync with community-service-backend/utils/validation.js).
+// =============================================================================
+// Input rules for account fields (frontend copy)
+// -----------------------------------------------------------------------------
+// INPUT VALIDATION: gives users instant feedback while typing on the Signup and
+//   Add Admin forms. These are COPIES of community-service-backend/utils/validation.js
+//   - keep both in sync. The backend copy is the one that is enforced, because
+//   anything in the browser can be bypassed.
+// REUSABILITY: shared by Signup.jsx and AdminDashboard.jsx.
+//
 // Each validator returns an error message, or "" when the value is valid.
+// =============================================================================
 
 const NAME_REGEX = /^\p{L}+(?:[ '’-]\p{L}+)*$/u;
 const EMAIL_REGEX = /^[a-z0-9]+(?:[._-][a-z0-9]+)*@mvsu\.edu$/;

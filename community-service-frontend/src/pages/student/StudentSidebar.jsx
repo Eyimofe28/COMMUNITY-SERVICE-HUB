@@ -8,12 +8,9 @@ import MailOutlineRoundedIcon from "@mui/icons-material/MailOutlineRounded";
 import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import EmojiEventsRoundedIcon from "@mui/icons-material/EmojiEventsRounded";
+import { logout } from "../../utils/auth";
 
 export default function StudentSidebar({ active }) {
-  const handleLogout = () => {
-    localStorage.clear();
-    window.location.href = `${process.env.PUBLIC_URL}/login`;
-  };
 
   const navItems = [
     { icon: <HomeRoundedIcon />, route: "/student/dashboard", key: "dashboard" },
@@ -75,7 +72,7 @@ export default function StudentSidebar({ active }) {
       </Stack>
 
       {/* Logout */}
-      <IconButton sx={{ color: "#fff", mt: 2 }} onClick={handleLogout}>
+      <IconButton sx={{ color: "#fff", mt: 2 }} onClick={() => logout()}>
         <LogoutRoundedIcon />
       </IconButton>
     </Box>

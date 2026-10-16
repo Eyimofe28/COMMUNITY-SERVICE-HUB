@@ -10,9 +10,9 @@
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, "..", ".env"), quiet: true });
 
-const bcrypt = require("bcrypt");
+
 const db = require("../config/db");
-const { generatePassword } = require("../utils/passwordPolicy");
+const { generatePassword, hashPassword } = require("../utils/passwordPolicy");
 
 const DEMO_USERS = [
     { key: "approver", firstName: "Grace",  lastName: "Johnson",  email: "demo.approver@mvsu.edu", role: "faculty", dept: "Community Engagement", approver: true },
@@ -40,7 +40,7 @@ async function main() {
         // ---- Accounts ----
         for (const u of DEMO_USERS) {
             const password = generatePassword();
-            const hash = await bcrypt.hash(password, 10);
+            const hash = await hashPassword(password);
 
             const { rows } = await client.query(
                 `INSERT INTO users ("First_Name", "Last_Name", "Email", "Password_Hash", "Role")

@@ -1,4 +1,10 @@
-// Live checklist of password rules, shown under a password field.
+// =============================================================================
+// Live checklist of password rules, shown under a password field
+// -----------------------------------------------------------------------------
+// INPUT VALIDATION: each rule turns green as soon as the typed password meets it.
+// REUSABILITY: one component used on Signup, Add Admin and Change Password -
+//   usage: <PasswordRequirements password={value} />
+// =============================================================================
 import { Box, Typography } from "@mui/material";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import RadioButtonUncheckedRoundedIcon from "@mui/icons-material/RadioButtonUncheckedRounded";

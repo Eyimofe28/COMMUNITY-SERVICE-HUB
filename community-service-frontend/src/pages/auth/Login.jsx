@@ -1,70 +1,66 @@
-import { Box, Button, TextField, Typography, Paper, Link, IconButton } from "@mui/material";
+// =============================================================================
+// Login page
+// -----------------------------------------------------------------------------
+// Flow: user submits email + password -> POST /api/auth/login -> on success the
+// session (token, role, name) is saved with saveSession() and the user is sent
+// to their role's dashboard.
+//
+// INPUT VALIDATION: empty fields are caught here before any request is sent;
+//   the backend validates again (the real check).
+// SECURITY: the password only lives in this component's state and is sent once,
+//   over HTTPS on the school server. It is never stored in the browser.
+// ERROR HANDLING: wrong credentials, too many attempts, server/network problems
+//   and "session expired" all appear as a message in the card.
+// REUSABILITY: uses the shared api client, session helpers and error formatter.
+// =============================================================================
+
+import { Box, Button, TextField, Typography, Paper, Link, IconButton, Alert } from "@mui/material";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
-import api from "../../api/axios";
+import api, { getErrorMessage } from "../../api/axios";
+import { saveSession, dashboardPathFor, takeLoginNotice } from "../../utils/auth";
 
 export default function Login() {
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleLogin = async () => {
-  try {
-    const res = await api.post("/auth/login", {
-      email,
-      password
-    });
+  // Message shown in the card - starts with any notice left for this page
+  // (e.g. "Account created", "Your session has expired")
+  const [status, setStatus] = useState(() => {
+    const notice = takeLoginNotice();
+    return notice ? { type: "info", text: notice } : null;
+  });
 
-    const { token, role, userId, profile } = res.data;
+  const handleLogin = async (e) => {
+    e.preventDefault(); // stay on the page; the form is handled here
+    setStatus(null);
 
-    // Store auth data
-    localStorage.setItem("token", token);
-    localStorage.setItem("role", role);
-    localStorage.setItem("userId", userId);
-
-    // Store first name for "Hello, ___"
-    if (profile?.First_Name) {
-      localStorage.setItem("firstName", profile.First_Name);
+    // Client-side check: both fields are required
+    if (!email.trim() || !password) {
+      setStatus({ type: "error", text: "Please enter your email and password." });
+      return;
     }
 
-    // Route user
-    if (role === "student") navigate("/student/dashboard");
-    else if (role === "approver") navigate("/approver/dashboard");
-    else if (role === "faculty") navigate("/faculty/dashboard");
-    else if (role === "admin") navigate("/admin/dashboard");
-    else navigate("/welcome");
+    setSubmitting(true);
+    try {
+      const res = await api.post("/auth/login", {
+        email: email.trim().toLowerCase(),
+        password,
+      });
 
-  } catch (error) {
-    alert(error.response?.data?.message || "Login failed.");
-  }
-};
-
-
-  // const handleLogin = async () => {
-  //   try {
-  //     const res = await api.post("/auth/login", {
-  //       email,
-  //       password
-  //     });
-
-  //     // Save JWT token
-  //     localStorage.setItem("token", res.data.token);
-  //     localStorage.setItem("role", res.data.role);
-  //     localStorage.setItem("userId", res.data.userId);
-
-  //     // Navigate based on role
-  //     if (res.data.role === "student") navigate("/student/dashboard");
-  //     else if (res.data.role === "approver") navigate("/approver/dashboard");
-  //     else if (res.data.role === "faculty") navigate("/faculty/dashboard");
-  //     else if (res.data.role === "admin") navigate("/admin/dashboard");
-      
-
-  //   } catch (error) {
-  //     alert(error.response?.data?.message || "Login failed.");
-  //   }
-  // };
+      // Save { token, role, userId, firstName } and go to the right dashboard
+      saveSession(res.data);
+      navigate(dashboardPathFor(res.data.role));
+    } catch (error) {
+      setStatus({ type: "error", text: getErrorMessage(error, "Login failed. Please try again.") });
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <Box
@@ -77,6 +73,9 @@ export default function Login() {
       }}
     >
       <Paper
+        component="form"
+        noValidate
+        onSubmit={handleLogin}
         elevation={0}
         sx={{
           width: "90%",
@@ -117,9 +116,17 @@ export default function Login() {
           Login
         </Typography>
 
+        {status && (
+          <Alert severity={status.type} sx={{ mb: 2 }}>
+            {status.text}
+          </Alert>
+        )}
+
         <TextField
           fullWidth
           label="Email"
+          type="email"
+          autoComplete="username"
           variant="outlined"
           sx={{ mb: 2 }}
           value={email}
@@ -130,6 +137,7 @@ export default function Login() {
           fullWidth
           label="Password"
           type="password"
+          autoComplete="current-password"
           variant="outlined"
           sx={{ mb: 3 }}
           value={password}
@@ -137,8 +145,10 @@ export default function Login() {
         />
 
         <Button
+          type="submit"
           variant="contained"
           fullWidth
+          disabled={submitting}
           sx={{
             background: "#0B3D2E",
             py: 1.4,
@@ -146,9 +156,8 @@ export default function Login() {
             fontWeight: "bold",
             "&:hover": { background: "#0d4d38" },
           }}
-          onClick={handleLogin}
         >
-          LOGIN
+          {submitting ? "Logging in..." : "LOGIN"}
         </Button>
 
         <Typography sx={{ textAlign: "center", mt: 3 }}>
