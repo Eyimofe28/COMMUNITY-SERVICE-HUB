@@ -1,6 +1,6 @@
 // src/pages/FacultyMessages.jsx
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../../api/axios";
 import {
   Box,
   Typography,
@@ -14,8 +14,6 @@ import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import FacultySidebar from "./FacultySidebar";
 
 export default function FacultyMessages() {
-  const token = localStorage.getItem("token");
-
   const [conversations, setConversations] = useState([]);
   const [selectedOpp, setSelectedOpp] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -24,9 +22,8 @@ export default function FacultyMessages() {
   // Fetch all faculty submissions
   const fetchConversations = async () => {
     try {
-      const res = await axios.get(
-        "http://localhost:5000/api/opportunity/my-submissions",
-        { headers: { Authorization: `Bearer ${token}` } }
+      const res = await api.get(
+        "/opportunity/my-submissions"
       );
 
       const rows =
@@ -49,9 +46,8 @@ export default function FacultyMessages() {
   // Fetch messages for selected opportunity
   const fetchMessages = async (opportunityId) => {
     try {
-      const res = await axios.get(
-        `http://localhost:5000/api/communication/${opportunityId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+      const res = await api.get(
+        `/communication/${opportunityId}`
       );
 
       setMessages(res.data.messages || []);
@@ -74,10 +70,9 @@ export default function FacultyMessages() {
     if (!messageInput.trim() || !selectedOpp) return;
 
     try {
-      await axios.post(
-        `http://localhost:5000/api/communication/${selectedOpp.Opportunity_ID}`,
-        { message: messageInput },
-        { headers: { Authorization: `Bearer ${token}` } }
+      await api.post(
+        `/communication/${selectedOpp.Opportunity_ID}`,
+        { message: messageInput }
       );
 
       setMessageInput("");

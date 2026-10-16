@@ -1,6 +1,6 @@
 // src/pages/StudentMessages.jsx
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../../api/axios";
 
 import {
   Box,
@@ -29,9 +29,8 @@ export default function StudentMessages() {
   useEffect(() => {
     const fetchRegistrations = async () => {
       try {
-        const res = await axios.get(
-          "http://localhost:5000/api/opportunity/my-registrations",
-          { headers: { Authorization: `Bearer ${token}` } }
+        const res = await api.get(
+          "/opportunity/my-registrations"
         );
 
         const list = res.data.opportunities || [];
@@ -53,9 +52,8 @@ export default function StudentMessages() {
     const fetchMessages = async () => {
       setLoadingMessages(true);
       try {
-        const res = await axios.get(
-          `http://localhost:5000/api/communication/${activeOpportunity}`,
-          { headers: { Authorization: `Bearer ${token}` } }
+        const res = await api.get(
+          `/communication/${activeOpportunity}`
         );
         setMessages(res.data.messages || []);
       } catch (e) {

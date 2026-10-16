@@ -1,6 +1,6 @@
 // src/pages/StudentDashboard.jsx
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../../api/axios";
 import {
   Box,
   Paper,
@@ -75,17 +75,15 @@ export default function StudentDashboard() {
 
     try {
       // 1. Fetch all approved opportunities
-      const approvedRes = await axios.get(
-        "http://localhost:5000/api/opportunity/approved",
-        { headers: { Authorization: `Bearer ${token}` } }
+      const approvedRes = await api.get(
+        "/opportunity/approved"
       );
 
       const approved = approvedRes.data.opportunities || [];
 
       // 2. Fetch all registrations for this student
-      const regRes = await axios.get(
-        "http://localhost:5000/api/opportunity/my-registrations",
-        { headers: { Authorization: `Bearer ${token}` } }
+      const regRes = await api.get(
+        "/opportunity/my-registrations"
       );
 
       const registeredList = regRes.data.opportunities || [];
@@ -121,12 +119,9 @@ export default function StudentDashboard() {
   setRegisteringId(opportunityId);
 
   try {
-    await axios.post(
-      `http://localhost:5000/api/opportunity/register/${opportunityId}`,
-      {},
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
+    await api.post(
+      `/opportunity/register/${opportunityId}`,
+      {}
     );
 
     setOpportunities(prev =>

@@ -22,6 +22,9 @@ import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import AdminPanelSettingsRoundedIcon from "@mui/icons-material/AdminPanelSettingsRounded";
 
 import api from "../../api/axios";
+import PasswordRequirements from "../../components/PasswordRequirements";
+import { isPasswordValid } from "../../utils/passwordRules";
+import { validateName, validateEmail } from "../../utils/validation";
 
 const emptyAdminForm = { firstName: "", lastName: "", email: "", password: "" };
 const emptyPasswordForm = { currentPassword: "", newPassword: "", confirmPassword: "" };
@@ -66,6 +69,12 @@ export default function AdminDashboard() {
   }, []);
 
   // ---- Add admin ----
+  const adminErrors = {
+    firstName: validateName(adminForm.firstName, "First name"),
+    lastName: validateName(adminForm.lastName, "Last name"),
+    email: validateEmail(adminForm.email),
+  };
+
   const handleAdminFormChange = (e) => {
     setAdminForm({ ...adminForm, [e.target.name]: e.target.value });
   };
@@ -74,7 +83,10 @@ export default function AdminDashboard() {
     setAdminFormStatus(null);
     setCreating(true);
     try {
-      const res = await api.post("/admin/create-admin", adminForm);
+      const res = await api.post("/admin/create-admin", {
+        ...adminForm,
+        email: adminForm.email.trim().toLowerCase(),
+      });
       setAdminFormStatus({ type: "success", text: res.data.message });
       setAdminForm(emptyAdminForm);
       loadAdmins();
@@ -261,6 +273,8 @@ export default function AdminDashboard() {
                   name="firstName"
                   value={adminForm.firstName}
                   onChange={handleAdminFormChange}
+                  error={!!adminForm.firstName && !!adminErrors.firstName}
+                  helperText={adminForm.firstName && adminErrors.firstName}
                 />
                 <TextField
                   fullWidth
@@ -268,6 +282,8 @@ export default function AdminDashboard() {
                   name="lastName"
                   value={adminForm.lastName}
                   onChange={handleAdminFormChange}
+                  error={!!adminForm.lastName && !!adminErrors.lastName}
+                  helperText={adminForm.lastName && adminErrors.lastName}
                 />
               </Box>
               <TextField
@@ -276,18 +292,25 @@ export default function AdminDashboard() {
                 name="email"
                 value={adminForm.email}
                 onChange={handleAdminFormChange}
+                error={!!adminForm.email && !!adminErrors.email}
+                helperText={adminForm.email && adminErrors.email}
               />
               <TextField
                 fullWidth
-                label="Temporary Password (min. 8 characters)"
+                label="Temporary Password"
                 name="password"
                 type="password"
                 value={adminForm.password}
                 onChange={handleAdminFormChange}
               />
+              <PasswordRequirements password={adminForm.password} />
               <Button
                 variant="contained"
-                disabled={creating}
+                disabled={
+                  creating ||
+                  !isPasswordValid(adminForm.password) ||
+                  Object.values(adminErrors).some(Boolean)
+                }
                 onClick={handleCreateAdmin}
                 sx={{ bgcolor: "#0B3D2E", py: 1.2, "&:hover": { bgcolor: "#0d4d38" } }}
               >
@@ -318,12 +341,13 @@ export default function AdminDashboard() {
               />
               <TextField
                 fullWidth
-                label="New Password (min. 8 characters)"
+                label="New Password"
                 name="newPassword"
                 type="password"
                 value={passwordForm.newPassword}
                 onChange={handlePasswordFormChange}
               />
+              <PasswordRequirements password={passwordForm.newPassword} />
               <TextField
                 fullWidth
                 label="Confirm New Password"
@@ -334,7 +358,7 @@ export default function AdminDashboard() {
               />
               <Button
                 variant="contained"
-                disabled={changingPassword}
+                disabled={changingPassword || !isPasswordValid(passwordForm.newPassword)}
                 onClick={handleChangePassword}
                 sx={{ bgcolor: "#0B3D2E", py: 1.2, "&:hover": { bgcolor: "#0d4d38" } }}
               >

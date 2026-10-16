@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../../api/axios";
 import {
   Box,
   Typography,
@@ -26,7 +26,6 @@ import DialogActions from "@mui/material/DialogActions";
 import TextField from "@mui/material/TextField";
 
 export default function ApproverDashboard() {
-  const token = localStorage.getItem("token");
   const firstName = localStorage.getItem("firstName") || "Approver";
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [selectedOpp, setSelectedOpp] = useState(null);
@@ -45,9 +44,8 @@ export default function ApproverDashboard() {
   // Get Pending opportunities
   const loadPending = async () => {
     try {
-      const res = await axios.get(
-        "http://localhost:5000/api/opportunity/pending",
-        { headers: { Authorization: `Bearer ${token}` } }
+      const res = await api.get(
+        "/opportunity/pending"
       );
       setPending(res.data.pending || []);
     } catch (err) {
@@ -58,9 +56,8 @@ export default function ApproverDashboard() {
   // Get Approved opportunities
   const loadApproved = async () => {
     try {
-      const res = await axios.get(
-            "http://localhost:5000/api/opportunity/approved-by-me",
-            { headers: { Authorization: `Bearer ${token}` } }
+      const res = await api.get(
+            "/opportunity/approved-by-me"
     );
 
       setApproved(res.data.approved || []);
@@ -71,9 +68,8 @@ export default function ApproverDashboard() {
     // Get Rejected opportunities
     const loadRejected = async () => {
     try {
-        const res = await axios.get(
-        "http://localhost:5000/api/opportunity/rejected-by-me",
-        { headers: { Authorization: `Bearer ${token}` } }
+        const res = await api.get(
+        "/opportunity/rejected-by-me"
         );
         setRejected(res.data.rejected || []);
     } catch (err) {
@@ -93,10 +89,9 @@ export default function ApproverDashboard() {
     if (!selectedOpp) return;
 
     try {
-        await axios.patch(
-        `http://localhost:5000/api/opportunity/approve/${selectedOpp.Opportunity_ID}`,
-        { status: "Rejected", rejectionReason },
-        { headers: { Authorization: `Bearer ${token}` } }
+        await api.patch(
+        `/opportunity/approve/${selectedOpp.Opportunity_ID}`,
+        { status: "Rejected", rejectionReason }
         );
 
         setRejectModalOpen(false);
@@ -115,10 +110,9 @@ export default function ApproverDashboard() {
 
   const approve = async (id) => {
     try {
-      await axios.patch(
-        `http://localhost:5000/api/opportunity/approve/${id}`,
-        { status: "Approved" },
-        { headers: { Authorization: `Bearer ${token}` } }
+      await api.patch(
+        `/opportunity/approve/${id}`,
+        { status: "Approved" }
       );
       loadPending();
       loadApproved();

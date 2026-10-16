@@ -1,6 +1,6 @@
 // src/pages/CompletedOpportunities.jsx
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../../api/axios";
 
 import {
   Box,
@@ -50,14 +50,13 @@ export default function CompletedOpportunities() {
   useEffect(() => {
     const fetchCompleted = async () => {
       try {
-        const res = await axios.get(
-          "http://localhost:5000/api/opportunity/my-registrations",
-          { headers: { Authorization: `Bearer ${token}` } }
+        const res = await api.get(
+          "/opportunity/my-registrations"
         );
 
-        // Filter ONLY completed (Attended = 1)
+        // Filter ONLY completed (Attended = true)
         const attended = (res.data.opportunities || []).filter(
-          (opp) => opp.Attended === 1
+          (opp) => opp.Attended === true
         );
 
         setCompleted(attended);

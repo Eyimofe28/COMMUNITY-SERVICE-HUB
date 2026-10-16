@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../../api/axios";
 
 import {
   Box,
@@ -65,9 +65,8 @@ export default function FacultyAttendance() {
     const fetchSubmissions = async () => {
       setLoadingOpps(true);
       try {
-        const res = await axios.get(
-          "http://localhost:5000/api/opportunity/my-submissions",
-          { headers: { Authorization: `Bearer ${token}` } }
+        const res = await api.get(
+          "/opportunity/my-submissions"
         );
 
         const rows = res.data.submissions || [];
@@ -98,9 +97,8 @@ export default function FacultyAttendance() {
       setLoadingStudents(true);
 
       try {
-        const res = await axios.get(
-          `http://localhost:5000/api/opportunity/${selectedOppId}/registrations`,
-          { headers: { Authorization: `Bearer ${token}` } }
+        const res = await api.get(
+          `/opportunity/${selectedOppId}/registrations`
         );
 
         const list = res.data.students || [];
@@ -116,7 +114,7 @@ export default function FacultyAttendance() {
         const initial = {};
         list.forEach((stu) => {
           initial[stu.Student_ID] = {
-            attended: stu.Attended === 1,
+            attended: stu.Attended === true,
             hoursEarned: stu.Hours_Earned ?? defaultHours,
           };
         });
@@ -178,10 +176,9 @@ export default function FacultyAttendance() {
         })
       );
 
-      await axios.post(
-        `http://localhost:5000/api/opportunity/${selectedOppId}/attendance`,
-        { attendance: payload },
-        { headers: { Authorization: `Bearer ${token}` } }
+      await api.post(
+        `/opportunity/${selectedOppId}/attendance`,
+        { attendance: payload }
       );
 
       setSubmitted(true);

@@ -4,7 +4,10 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "make-admin": "node community-service-backend/scripts/make-admin.js"
+    "start": "node community-service-backend/server.js",
+    "make-admin": "node community-service-backend/scripts/make-admin.js",
+    "db:schema": "node community-service-backend/scripts/apply-schema.js",
+    "db:seed": "node community-service-backend/scripts/seed-demo.js"
   },
   "keywords": [],
   "author": "",
@@ -17,7 +20,7 @@
     "express": "^5.1.0",
     "express-validator": "^7.3.1",
     "jsonwebtoken": "^9.0.2",
-    "mysql2": "^3.15.3",
-    "nodemailer": "^7.0.10"
+    "nodemailer": "^7.0.10",
+    "pg": "^8.23.1"
   }
 }

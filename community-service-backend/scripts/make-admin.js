@@ -12,8 +12,9 @@ const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, "..", ".env"), quiet: true });
 
 const bcrypt = require("bcrypt");
-const crypto = require("crypto");
 const db = require("../config/db");
+const { generatePassword } = require("../utils/passwordPolicy");
+const { validateName, validateEmail } = require("../utils/validation");
 
 async function main() {
     const [emailArg, firstName, lastName] = process.argv.slice(2);
@@ -33,16 +34,17 @@ async function main() {
         return;
     }
 
-    if (!email.endsWith("@mvsu.edu")) {
-        console.log("Error: only mvsu.edu emails are allowed.");
+    const emailError = validateEmail(email);
+    if (emailError) {
+        console.log(`Error: ${emailError}`);
         process.exitCode = 1;
         return;
     }
 
-    const tempPassword = crypto.randomBytes(9).toString("base64url");
+    const tempPassword = generatePassword();
     const hashed = await bcrypt.hash(tempPassword, 10);
 
-    const [rows] = await db.query("SELECT User_ID, Role FROM Users WHERE Email = ?", [email]);
+    const { rows } = await db.query('SELECT "User_ID", "Role" FROM users WHERE "Email" = $1', [email]);
 
     if (rows.length > 0) {
         if (rows[0].Role !== "admin") {
@@ -51,7 +53,7 @@ async function main() {
             return;
         }
 
-        await db.query("UPDATE Users SET Password_Hash = ? WHERE User_ID = ?", [hashed, rows[0].User_ID]);
+        await db.query('UPDATE users SET "Password_Hash" = $1 WHERE "User_ID" = $2', [hashed, rows[0].User_ID]);
         console.log(`Password reset for existing admin ${email}.`);
     } else {
         if (!firstName || !lastName) {
@@ -61,9 +63,17 @@ async function main() {
             return;
         }
 
+        const nameError = validateName(firstName, "First name") || validateName(lastName, "Last name");
+        if (nameError) {
+            console.log(`Error: ${nameError}`);
+            process.exitCode = 1;
+            return;
+        }
+
         await db.query(
-            "INSERT INTO Users (First_Name, Last_Name, Email, Password_Hash, Role) VALUES (?, ?, ?, ?, 'admin')",
-            [firstName.trim(), lastName.trim(), email, hashed]
+            `INSERT INTO users ("First_Name", "Last_Name", "Email", "Password_Hash", "Role")
+             VALUES ($1, $2, $3, $4, 'admin')`,
+            [firstName, lastName, email, hashed]
         );
         console.log(`Admin account created for ${email}.`);
     }
