@@ -25,7 +25,8 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 function App() {
   return (
     <ThemeProvider theme={theme}>
-      <BrowserRouter>
+      {/* PUBLIC_URL is "" locally and e.g. "/~username" when built for the school server */}
+      <BrowserRouter basename={process.env.PUBLIC_URL}>
         <Routes>
           {/* Onboarding flow */}
           <Route path="/" element={<Splash />} />

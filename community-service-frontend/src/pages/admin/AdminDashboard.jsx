@@ -48,7 +48,7 @@ export default function AdminDashboard() {
 
   const handleLogout = () => {
     localStorage.clear();
-    window.location.href = "/login";
+    window.location.href = `${process.env.PUBLIC_URL}/login`;
   };
 
   const loadAdmins = async () => {

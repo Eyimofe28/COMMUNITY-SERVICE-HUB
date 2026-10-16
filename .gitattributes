@@ -1,0 +1,2 @@
+# Shell scripts run on the Linux school server and must keep LF line endings
+*.sh text eol=lf

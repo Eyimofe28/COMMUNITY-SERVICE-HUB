@@ -10,7 +10,7 @@ import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 export default function FacultySidebar({ active }) {
   const handleLogout = () => {
     localStorage.clear();
-    window.location.href = "/login";
+    window.location.href = `${process.env.PUBLIC_URL}/login`;
   };
 
   const navItems = [
@@ -77,7 +77,7 @@ export default function FacultySidebar({ active }) {
               height: 70,
               borderRadius: "14px",
             }}
-            onClick={() => (window.location.href = item.route)}
+            onClick={() => (window.location.href = `${process.env.PUBLIC_URL}${item.route}`)}
           >
             {item.icon}
           </IconButton>
