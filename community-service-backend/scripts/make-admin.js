@@ -14,6 +14,7 @@ require("dotenv").config({ path: path.join(__dirname, "..", ".env"), quiet: true
 const bcrypt = require("bcrypt");
 const db = require("../config/db");
 const { generatePassword } = require("../utils/passwordPolicy");
+const { validateName, validateEmail } = require("../utils/validation");
 
 async function main() {
     const [emailArg, firstName, lastName] = process.argv.slice(2);
@@ -33,8 +34,9 @@ async function main() {
         return;
     }
 
-    if (!email.endsWith("@mvsu.edu")) {
-        console.log("Error: only mvsu.edu emails are allowed.");
+    const emailError = validateEmail(email);
+    if (emailError) {
+        console.log(`Error: ${emailError}`);
         process.exitCode = 1;
         return;
     }
@@ -61,10 +63,17 @@ async function main() {
             return;
         }
 
+        const nameError = validateName(firstName, "First name") || validateName(lastName, "Last name");
+        if (nameError) {
+            console.log(`Error: ${nameError}`);
+            process.exitCode = 1;
+            return;
+        }
+
         await db.query(
             `INSERT INTO users ("First_Name", "Last_Name", "Email", "Password_Hash", "Role")
              VALUES ($1, $2, $3, $4, 'admin')`,
-            [firstName.trim(), lastName.trim(), email, hashed]
+            [firstName, lastName, email, hashed]
         );
         console.log(`Admin account created for ${email}.`);
     }

@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import api from "../../api/axios";
 import PasswordRequirements from "../../components/PasswordRequirements";
 import { isPasswordValid } from "../../utils/passwordRules";
+import { validateName, validateEmail, validateDepartment } from "../../utils/validation";
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -14,17 +15,53 @@ export default function Signup() {
     lastName: "",
     email: "",
     password: "",
+    confirmPassword: "",
     role: "student",
     department: ""
   });
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+  // Fields the user has left (errors only show after that, or after pressing Continue)
+  const [touched, setTouched] = useState({});
+  const [submitted, setSubmitted] = useState(false);
+
+  const errors = {
+    firstName: validateName(form.firstName, "First name"),
+    lastName: validateName(form.lastName, "Last name"),
+    email: validateEmail(form.email),
+    password: isPasswordValid(form.password) ? "" : "Password does not meet all the requirements below.",
+    confirmPassword:
+      form.confirmPassword === form.password && form.confirmPassword ? "" : "Passwords do not match.",
+    department: form.role === "faculty" ? validateDepartment(form.department) : "",
   };
+  const hasErrors = Object.values(errors).some(Boolean);
+
+  const showError = (field) => (touched[field] || submitted) && !!errors[field];
+  const fieldProps = (field) => ({
+    name: field,
+    value: form[field],
+    onChange: handleChange,
+    onBlur: () => setTouched((prev) => ({ ...prev, [field]: true })),
+    error: showError(field),
+    helperText: showError(field) ? errors[field] : " ",
+  });
+
+  function handleChange(e) {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  }
 
   const handleSignup = async () => {
+    setSubmitted(true);
+    if (hasErrors) return;
+
     try {
-      await api.post("/auth/signup", form);
+      await api.post("/auth/signup", {
+        firstName: form.firstName,
+        lastName: form.lastName,
+        email: form.email.trim().toLowerCase(),
+        password: form.password,
+        role: form.role,
+        department: form.role === "faculty" ? form.department : undefined,
+      });
       alert("Account created! You can now log in.");
       navigate("/login");
     } catch (error) {
@@ -35,7 +72,9 @@ export default function Signup() {
   return (
     <Box
       sx={{
-        height: "100vh",
+        minHeight: "100vh",
+        py: 4,
+        boxSizing: "border-box",
         background: "#0B3D2E",
         display: "flex",
         justifyContent: "center",
@@ -96,50 +135,41 @@ export default function Signup() {
         </Typography>
 
         {/* INPUTS */}
-        <TextField
-          label="First Name"
-          name="firstName"
-          fullWidth
-          sx={{ mb: 2 }}
-          onChange={handleChange}
-        />
+        <Box sx={{ display: "flex", gap: 2 }}>
+          <TextField label="First Name" fullWidth sx={{ mb: 0.5 }} {...fieldProps("firstName")} />
+          <TextField label="Last Name" fullWidth sx={{ mb: 0.5 }} {...fieldProps("lastName")} />
+        </Box>
 
         <TextField
-          label="Last Name"
-          name="lastName"
+          label="MVSU Email"
+          placeholder="first.last@mvsu.edu"
           fullWidth
-          sx={{ mb: 2 }}
-          onChange={handleChange}
+          sx={{ mb: 0.5 }}
+          {...fieldProps("email")}
         />
 
-        <TextField
-          label="Email"
-          name="email"
-          fullWidth
-          sx={{ mb: 2 }}
-          onChange={handleChange}
-        />
-
-        <TextField
-          label="Password"
-          name="password"
-          type="password"
-          fullWidth
-          sx={{ mb: 1 }}
-          onChange={handleChange}
-        />
+        <TextField label="Password" type="password" fullWidth sx={{ mb: 0.5 }} {...fieldProps("password")} />
 
         <Box sx={{ mb: 2, px: 0.5 }}>
           <PasswordRequirements password={form.password} />
         </Box>
 
         <TextField
+          label="Confirm Password"
+          type="password"
+          fullWidth
+          sx={{ mb: 0.5 }}
+          {...fieldProps("confirmPassword")}
+        />
+
+        <TextField
           label="Role"
           select
           name="role"
+          value={form.role}
           fullWidth
           SelectProps={{ native: true }}
-          sx={{ mb: 2 }}
+          sx={{ mb: 2.5 }}
           onChange={handleChange}
         >
           <option value="student">Student</option>
@@ -147,13 +177,7 @@ export default function Signup() {
         </TextField>
 
         {form.role === "faculty" && (
-          <TextField
-            label="Department"
-            name="department"
-            fullWidth
-            sx={{ mb: 2 }}
-            onChange={handleChange}
-          />
+          <TextField label="Department" fullWidth sx={{ mb: 0.5 }} {...fieldProps("department")} />
         )}
 
         {/* SUBMIT BUTTON */}
@@ -161,7 +185,6 @@ export default function Signup() {
           variant="contained"
           fullWidth
           sx={{ py: 1.4, fontSize: "1rem" }}
-          disabled={!isPasswordValid(form.password)}
           onClick={handleSignup}
         >
           Continue

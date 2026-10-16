@@ -1,6 +1,7 @@
 const bcrypt = require("bcrypt");
 const db = require("../config/db");
 const { validatePassword } = require("../utils/passwordPolicy");
+const { validateName, validateEmail } = require("../utils/validation");
 
 // NOTE: The FIRST admin is created from the server with `npm run make-admin`
 // (see community-service-backend/scripts/make-admin.js). There is intentionally
@@ -33,15 +34,16 @@ exports.createAdmin = async (req, res) => {
             return res.status(400).json({ message: "Missing required fields." });
         }
 
-        const normalizedEmail = email.trim().toLowerCase();
+        const normalizedEmail = String(email).trim().toLowerCase();
 
-        if (!normalizedEmail.endsWith("@mvsu.edu")) {
-            return res.status(400).json({ message: "Only mvsu.edu emails are allowed." });
-        }
+        const inputError =
+            validateName(firstName, "First name") ||
+            validateName(lastName, "Last name") ||
+            validateEmail(normalizedEmail) ||
+            validatePassword(password);
 
-        const passwordError = validatePassword(password);
-        if (passwordError) {
-            return res.status(400).json({ message: passwordError });
+        if (inputError) {
+            return res.status(400).json({ message: inputError });
         }
 
         const { rows: existing } = await db.query(
@@ -57,7 +59,7 @@ exports.createAdmin = async (req, res) => {
         await db.query(
             `INSERT INTO users ("First_Name", "Last_Name", "Email", "Password_Hash", "Role")
              VALUES ($1, $2, $3, $4, 'admin')`,
-            [firstName.trim(), lastName.trim(), normalizedEmail, hashed]
+            [firstName, lastName, normalizedEmail, hashed]
         );
 
         return res.status(201).json({ message: "Admin created successfully." });

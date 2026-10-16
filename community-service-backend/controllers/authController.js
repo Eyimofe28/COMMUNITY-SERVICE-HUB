@@ -2,6 +2,7 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const db = require("../config/db");
 const { validatePassword } = require("../utils/passwordPolicy");
+const { validateName, validateEmail, validateDepartment } = require("../utils/validation");
 
 // NOTE: Email verification was removed (MVSU's mail filter blocks the codes).
 // Accounts are created immediately. Admin approval of new accounts is planned.
@@ -15,21 +16,22 @@ exports.signup = async (req, res) => {
             return res.status(400).json({ message: "Missing required fields." });
         }
 
-        const normalizedEmail = email.trim().toLowerCase();
-
-        // Validate MVSU email domain
-        if (!normalizedEmail.endsWith("@mvsu.edu")) {
-            return res.status(400).json({ message: "Only mvsu.edu emails are allowed." });
-        }
+        const normalizedEmail = String(email).trim().toLowerCase();
 
         // Validate role
         if (!["student", "faculty"].includes(role)) {
             return res.status(400).json({ message: "Invalid role." });
         }
 
-        const passwordError = validatePassword(password);
-        if (passwordError) {
-            return res.status(400).json({ message: passwordError });
+        const inputError =
+            validateName(firstName, "First name") ||
+            validateName(lastName, "Last name") ||
+            validateEmail(normalizedEmail) ||
+            validatePassword(password) ||
+            (role === "faculty" ? validateDepartment(department) : null);
+
+        if (inputError) {
+            return res.status(400).json({ message: inputError });
         }
 
         // Check if email already exists
@@ -51,7 +53,7 @@ exports.signup = async (req, res) => {
             `INSERT INTO users ("First_Name", "Last_Name", "Email", "Password_Hash", "Role")
              VALUES ($1, $2, $3, $4, $5)
              RETURNING "User_ID"`,
-            [firstName.trim(), lastName.trim(), normalizedEmail, hashedPassword, role]
+            [firstName, lastName, normalizedEmail, hashedPassword, role]
         );
 
         const userId = inserted[0].User_ID;
@@ -66,7 +68,7 @@ exports.signup = async (req, res) => {
         if (role === "faculty") {
             await client.query(
                 'INSERT INTO faculty ("User_ID", "Faculty_Dept", "Approver") VALUES ($1, $2, false)',
-                [userId, department || null]
+                [userId, department]
             );
         }
 
