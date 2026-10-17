@@ -80,10 +80,6 @@ export default function CompletedOpportunities() {
     100
   );
 
-  const handleLogout = () => {
-    localStorage.clear();
-    window.location.href = `${process.env.PUBLIC_URL}/login`;
-  };
 
   return (
     <Box sx={{ height: "100vh", bgcolor: "#F5F5F7", display: "flex", gap: 2, paddingLeft: 3}}>

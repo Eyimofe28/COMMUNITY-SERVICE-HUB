@@ -25,6 +25,7 @@ import api from "../../api/axios";
 import PasswordRequirements from "../../components/PasswordRequirements";
 import { isPasswordValid } from "../../utils/passwordRules";
 import { validateName, validateEmail } from "../../utils/validation";
+import { logout } from "../../utils/auth";
 
 const emptyAdminForm = { firstName: "", lastName: "", email: "", password: "" };
 const emptyPasswordForm = { currentPassword: "", newPassword: "", confirmPassword: "" };
@@ -46,10 +47,6 @@ export default function AdminDashboard() {
   const [removeTarget, setRemoveTarget] = useState(null);
   const [listStatus, setListStatus] = useState(null);
 
-  const handleLogout = () => {
-    localStorage.clear();
-    window.location.href = `${process.env.PUBLIC_URL}/login`;
-  };
 
   const loadAdmins = async () => {
     setLoadingAdmins(true);
@@ -105,7 +102,7 @@ export default function AdminDashboard() {
     try {
       const res = await api.delete(`/admin/admins/${target.User_ID}`);
       if (res.data.removedSelf) {
-        handleLogout();
+        logout();
         return;
       }
       setListStatus({ type: "success", text: res.data.message });
@@ -153,7 +150,7 @@ export default function AdminDashboard() {
           Admin Dashboard
         </Typography>
 
-        <IconButton sx={{ color: "#111010ff" }} onClick={handleLogout}>
+        <IconButton sx={{ color: "#111010ff" }} onClick={() => logout()}>
           <LogoutRoundedIcon />
         </IconButton>
       </Box>

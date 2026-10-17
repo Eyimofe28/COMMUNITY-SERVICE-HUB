@@ -11,10 +11,10 @@
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, "..", ".env"), quiet: true });
 
-const bcrypt = require("bcrypt");
+
 const db = require("../config/db");
-const { generatePassword } = require("../utils/passwordPolicy");
-const { validateName, validateEmail } = require("../utils/validation");
+const { generatePassword, hashPassword } = require("../utils/passwordPolicy");
+const { normalizeEmail, validateName, validateEmail } = require("../utils/validation");
 
 async function main() {
     const [emailArg, firstName, lastName] = process.argv.slice(2);
@@ -25,7 +25,7 @@ async function main() {
         return;
     }
 
-    const email = emailArg.trim().toLowerCase();
+    const email = normalizeEmail(emailArg);
     if (!email.includes("@")) {
         console.log(`Error: "${emailArg}" is not an email address.`);
         console.log('Make sure there is a space after the "--":');
@@ -42,7 +42,7 @@ async function main() {
     }
 
     const tempPassword = generatePassword();
-    const hashed = await bcrypt.hash(tempPassword, 10);
+    const hashed = await hashPassword(tempPassword);
 
     const { rows } = await db.query('SELECT "User_ID", "Role" FROM users WHERE "Email" = $1', [email]);
 
