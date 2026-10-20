@@ -1,13 +1,17 @@
 -- Community Service Hub - PostgreSQL schema (Supabase)
 --
--- Apply with:  npm run db:schema   (from the project root)
+-- FROZEN STARTING POINT - do not edit. Later changes go in db/migrations/
+-- as numbered files (see db/migrations/README.md).
+--
+-- Apply with:  npm run db:schema -- --yes   (from the project root)
+-- which runs this file and then every migration in db/migrations/.
 -- WARNING: this drops and recreates every table, deleting all data.
 --
 -- Naming: table names are lowercase; column names keep their original
 -- Mixed_Case and must be double-quoted in queries (e.g. "User_ID"), so the
 -- API keeps returning the same field names the frontend expects.
 
-DROP TABLE IF EXISTS communication, attendance, registration, opportunity, student, faculty, users CASCADE;
+DROP TABLE IF EXISTS schema_migrations, communication, attendance, registration, opportunity, student, faculty, users CASCADE;
 
 -- ---------- USERS (base table for every account) ----------
 CREATE TABLE users (
