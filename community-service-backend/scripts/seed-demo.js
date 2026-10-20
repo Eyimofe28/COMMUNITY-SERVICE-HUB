@@ -13,6 +13,7 @@ require("dotenv").config({ path: path.join(__dirname, "..", ".env"), quiet: true
 
 const db = require("../config/db");
 const { generatePassword, hashPassword } = require("../utils/passwordPolicy");
+const { todayOnCampus, addDays } = require("../utils/dates");
 
 const DEMO_USERS = [
     { key: "approver", firstName: "Grace",  lastName: "Johnson",  email: "demo.approver@mvsu.edu", role: "faculty", dept: "Community Engagement", approver: true },
@@ -71,9 +72,9 @@ async function main() {
             const { rows } = await client.query(
                 `INSERT INTO opportunity ("Faculty_ID", "Title", "Description", "Date", "Start_Time", "End_Time",
                                           "Duration", "Location", "Person_In_Charge", "Approval_Status", "Approver_ID")
-                 VALUES ($1, $2, $3, CURRENT_DATE + $4::int, $5, $6, $7, $8, 'Marcus Williams', $9, $10)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'Marcus Williams', $9, $10)
                  RETURNING "Opportunity_ID"`,
-                [ids.faculty, title, description, dayOffset, start, end, hours, location, status,
+                [ids.faculty, title, description, addDays(todayOnCampus(), dayOffset), start, end, hours, location, status,
                  status === "Pending" ? null : ids.approver]
             );
             return rows[0].Opportunity_ID;

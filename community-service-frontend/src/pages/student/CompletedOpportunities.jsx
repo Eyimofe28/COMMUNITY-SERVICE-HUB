@@ -24,6 +24,7 @@ import WorkOutlineRoundedIcon from "@mui/icons-material/WorkOutlineRounded";
 
 import EmojiEventsRoundedIcon from "@mui/icons-material/EmojiEventsRounded";
 import StudentSidebar from "./StudentSidebar";
+import { formatDate } from "../../utils/dates";
 
 
 function getIconForCategory(category) {
@@ -197,7 +198,7 @@ export default function CompletedOpportunities() {
         ) : (
           completed.map((opp) => {
             const id = opp.Opportunity_ID;
-            const date = new Date(opp.Date).toLocaleDateString();
+            const date = formatDate(opp.Date);
             const timeRange = `${opp.Start_Time} – ${opp.End_Time}`;
 
             return (

@@ -27,6 +27,7 @@ import WorkOutlineRoundedIcon from "@mui/icons-material/WorkOutlineRounded";
 
 import FacultySidebar from "./FacultySidebar";
 import greetingsImg from "./greetings.png";
+import { formatDate } from "../../utils/dates";
 
 // ---------- ICON PICKER ----------
 function getIconForCategory(category) {
@@ -159,7 +160,7 @@ export default function FacultyDashboard() {
     const id = opp.Opportunity_ID;
     const expanded = expandedId === id;
 
-    const date = opp.Date ? new Date(opp.Date).toLocaleDateString() : "";
+    const date = opp.Date ? formatDate(opp.Date) : "";
     const timeRange = opp.Start_Time && opp.End_Time ? `${opp.Start_Time} – ${opp.End_Time}` : "";
 
     return (

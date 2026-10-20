@@ -16,6 +16,7 @@ import {
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import InfoRoundedIcon from "@mui/icons-material/InfoRounded";
 import FacultySidebar from "./FacultySidebar";
+import { todayOnCampus, addDays, MAX_DAYS_AHEAD } from "../../utils/dates";
 
 export default function FacultyCreateOpportunity() {
   const [form, setForm] = useState({
@@ -36,13 +37,16 @@ export default function FacultyCreateOpportunity() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  // Allowed date window (campus time): tomorrow .. MAX_DAYS_AHEAD days ahead.
+  // Same rule as the backend (utils/dates.js), which re-checks it.
+  const earliestDate = addDays(todayOnCampus(), 1);
+  const latestDate = addDays(todayOnCampus(), MAX_DAYS_AHEAD);
+
+  // Hours between start and end ("09:00" -> "12:00" = 3); null if end is not after start
   const calculateDuration = () => {
     if (!form.Start_Time || !form.End_Time) return null;
 
-    const start = new Date(`2025-01-01 ${form.Start_Time}`);
-    const end = new Date(`2025-01-01 ${form.End_Time}`);
-
-    const diff = (end - start) / (1000 * 60 * 60);
+    const diff = Number(form.End_Time.slice(0, 2)) - Number(form.Start_Time.slice(0, 2));
     return diff > 0 ? diff : null;
   };
 
@@ -60,17 +64,17 @@ export default function FacultyCreateOpportunity() {
       return showError(`Opportunity cannot be created because the following fields are missing: ${missing.join(", ")}`);
     }
 
-    // Prevent creating opportunities in the past
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const selectedDate = new Date(form.Date);
-    selectedDate.setHours(0, 0, 0, 0);
-
-    if (selectedDate < today) {
-      return showError("The date you selected has already passed. Please choose a future date.");
+    // Only future dates (tomorrow or later), at most 1 year ahead.
+    // "YYYY-MM-DD" strings compare correctly as plain text - no Date objects,
+    // so there is no time-zone shift.
+    if (form.Date < earliestDate) {
+      return showError("Opportunities must be scheduled for a future date (tomorrow or later).");
     }
-    
+
+    if (form.Date > latestDate) {
+      return showError(`Opportunities can be scheduled at most ${MAX_DAYS_AHEAD} days ahead.`);
+    }
+
     // Enforce hourly times on frontend
     const validHourly = (t) => t.endsWith(":00");
 
@@ -82,8 +86,8 @@ export default function FacultyCreateOpportunity() {
     const calculated = calculateDuration();
     const manualDuration = parseFloat(form.Duration);
 
-    if (calculated === null || calculated <= 0) {
-      return showError("Duration cannot be calculated. Ensure start and end times are valid.");
+    if (calculated === null) {
+      return showError("End Time must be later than Start Time.");
     }
 
     if (manualDuration !== calculated) {
@@ -162,61 +166,75 @@ export default function FacultyCreateOpportunity() {
           </Typography>
         </Paper>
 
-        {/* FORM */}
+        {/* FORM - MUI v7 Grid: each item takes `size` (columns out of 12 per screen width) */}
         <Grid container spacing={3}>
-          <Grid item xs={12} md={4}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <TextField fullWidth label="Title" name="Title" value={form.Title} onChange={handleChange} />
           </Grid>
 
-          <Grid item xs={12} md={4}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <TextField fullWidth label="Location" name="Location" value={form.Location} onChange={handleChange} />
           </Grid>
 
-          <Grid item xs={12} md={4}>
+          <Grid size={{ xs: 12, md: 4 }}>
+            {/* Native date picker; days outside tomorrow .. 1 year ahead are disabled */}
             <TextField
               fullWidth
               type="date"
               label="Date"
-              InputLabelProps={{ shrink: true }}
               name="Date"
               value={form.Date}
               onChange={handleChange}
+              helperText="Tomorrow or later, up to 1 year ahead"
+              slotProps={{
+                inputLabel: { shrink: true },
+                htmlInput: { min: earliestDate, max: latestDate },
+              }}
             />
           </Grid>
 
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               type="time"
               label="Start Time"
-              InputLabelProps={{ shrink: true }}
               name="Start_Time"
               value={form.Start_Time}
               onChange={handleChange}
-              inputProps={{ step: 3600 }}   // ⬅ Only hourly increments  
+              slotProps={{
+                inputLabel: { shrink: true },
+                htmlInput: { step: 3600 }, // ⬅ Only hourly increments
+              }}
             />
           </Grid>
 
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               type="time"
               label="End Time"
-              InputLabelProps={{ shrink: true }}
               name="End_Time"
               value={form.End_Time}
               onChange={handleChange}
-              inputProps={{ step: 3600 }}   // ⬅ Only hourly
+              slotProps={{
+                inputLabel: { shrink: true },
+                htmlInput: { step: 3600 }, // ⬅ Only hourly
+              }}
             />
           </Grid>
-          
+
           {/* Info tooltip about time format */}
-          <Tooltip title="24 Hour Format Timing" arrow>
-                <InfoRoundedIcon sx={{ fontSize: 20, color: "#0B3D2E", cursor: "pointer" }} />
-          </Tooltip>
+          <Grid size={12} sx={{ display: "flex", alignItems: "center", gap: 1, mt: -2 }}>
+            <Tooltip title="24 Hour Format Timing" arrow>
+              <InfoRoundedIcon sx={{ fontSize: 20, color: "#0B3D2E", cursor: "pointer" }} />
+            </Tooltip>
+            <Typography variant="body2" sx={{ color: "#6B7280" }}>
+              Times are on the hour, in 24-hour format (e.g. 14:00 = 2 PM).
+            </Typography>
+          </Grid>
 
           {/* Duration */}
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Duration (hrs)"
@@ -227,7 +245,7 @@ export default function FacultyCreateOpportunity() {
           </Grid>
 
           {/* Description */}
-          {/* <Grid item xs={12}> */}
+          <Grid size={12}>
             <TextField
               fullWidth
               multiline
@@ -237,10 +255,10 @@ export default function FacultyCreateOpportunity() {
               value={form.Description}
               onChange={handleChange}
             />
-          {/* </Grid> */}
+          </Grid>
 
           {/* Button */}
-          <Grid item xs={12} sx={{ textAlign: "center" }}>
+          <Grid size={12} sx={{ textAlign: "center" }}>
             <Button
               variant="contained"
               sx={{

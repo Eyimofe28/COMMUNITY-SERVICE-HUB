@@ -30,6 +30,7 @@ import WorkOutlineRoundedIcon from "@mui/icons-material/WorkOutlineRounded";
 
 import greetingsImg from "./checklist.jpg";
 import StudentSidebar from "./StudentSidebar";
+import { formatDate } from "../../utils/dates";
 
 function getIconForCategory(category) {
   const normalized = (category || "").toLowerCase();
@@ -162,7 +163,7 @@ export default function RegisteredOpportunities() {
         ) : (
           registered.map((opp) => {
             const id = opp.Opportunity_ID;
-            const date = opp.Date ? new Date(opp.Date).toLocaleDateString() : "";
+            const date = opp.Date ? formatDate(opp.Date) : "";
             const timeRange = `${opp.Start_Time} – ${opp.End_Time}`;
             const isExpanded = expandedId === id;
 

@@ -25,6 +25,7 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
 import TextField from "@mui/material/TextField";
 import { logout } from "../../utils/auth";
+import { formatDate } from "../../utils/dates";
 
 export default function ApproverDashboard() {
   const firstName = localStorage.getItem("firstName") || "Approver";
@@ -233,7 +234,7 @@ export default function ApproverDashboard() {
                             {o.Title}
                           </Typography>
                           <Typography sx={{ color: "#6B7280" }}>
-                            {new Date(o.Date).toLocaleDateString()} • {o.Start_Time} –{" "}
+                            {formatDate(o.Date)} • {o.Start_Time} –{" "}
                             {o.End_Time}
                           </Typography>
                           <Typography sx={{ color: "#4B5563", fontSize: "14px" }}>
@@ -319,7 +320,7 @@ export default function ApproverDashboard() {
                             {o.Title}
                           </Typography>
                           <Typography sx={{ color: "#6B7280" }}>
-                            {new Date(o.Date).toLocaleDateString()} • {o.Start_Time} –{" "}
+                            {formatDate(o.Date)} • {o.Start_Time} –{" "}
                             {o.End_Time}
                           </Typography>
                           <Typography sx={{ color: "#4B5563", fontSize: "14px" }}>
@@ -382,7 +383,7 @@ export default function ApproverDashboard() {
                             {o.Title}
                           </Typography>
                           <Typography sx={{ color: "#6B7280" }}>
-                            {new Date(o.Date).toLocaleDateString()} • {o.Start_Time} –{" "}
+                            {formatDate(o.Date)} • {o.Start_Time} –{" "}
                             {o.End_Time}
                           </Typography>
                           <Typography sx={{ color: "#4B5563", fontSize: "14px" }}>

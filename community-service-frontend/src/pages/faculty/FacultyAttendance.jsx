@@ -23,6 +23,7 @@ import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 
 import FacultySidebar from "./FacultySidebar";
+import { formatDate } from "../../utils/dates";
 
 // =============================================================
 //                     MODAL STYLING
@@ -268,7 +269,7 @@ export default function FacultyAttendance() {
                     primary={opp.Title}
                     secondary={
                       opp.Date
-                        ? new Date(opp.Date).toLocaleDateString()
+                        ? formatDate(opp.Date)
                         : ""
                     }
                     primaryTypographyProps={{ fontWeight: 600 }}
