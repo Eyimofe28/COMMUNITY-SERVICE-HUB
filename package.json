@@ -7,7 +7,9 @@
     "start": "node community-service-backend/server.js",
     "make-admin": "node community-service-backend/scripts/make-admin.js",
     "db:schema": "node community-service-backend/scripts/apply-schema.js",
-    "db:seed": "node community-service-backend/scripts/seed-demo.js"
+    "db:seed": "node community-service-backend/scripts/seed-demo.js",
+    "db:migrate": "node community-service-backend/scripts/migrate.js",
+    "db:status": "node community-service-backend/scripts/migrate.js --status"
   },
   "keywords": [],
   "author": "",

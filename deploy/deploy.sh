@@ -3,8 +3,8 @@
 #
 #   bash deploy/deploy.sh
 #
-# Steps: pull latest code -> install backend packages -> build the frontend ->
-# copy it into ~/public_html -> restart the backend.
+# Steps: pull latest code -> install backend packages -> apply database
+# migrations -> build the frontend -> copy it into ~/public_html -> restart the backend.
 #
 # One-time setup (see the deployment guide) must be done first:
 #   - community-service-backend/.env                     (DATABASE_URL, JWT_SECRET, PORT, CORS_ORIGIN)
@@ -32,6 +32,11 @@ git pull --ff-only
 
 echo "==> Installing backend packages"
 npm ci --omit=dev
+
+# Apply any new database migrations. If one fails it is rolled back and the
+# deploy stops here, so the running site keeps its current code and database.
+echo "==> Applying database migrations"
+npm run -s db:migrate
 
 echo "==> Building frontend"
 (cd community-service-frontend && npm ci && npm run build)
