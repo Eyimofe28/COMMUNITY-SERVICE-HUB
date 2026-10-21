@@ -12,6 +12,8 @@
 
 export const CAMPUS_TIME_ZONE = "America/Chicago";
 export const MAX_DAYS_AHEAD = 365;
+// Faculty can correct attendance this many days after the event (same as backend)
+export const ATTENDANCE_EDIT_DAYS = 14;
 
 // Today's date on campus as "YYYY-MM-DD" (en-CA formats as YYYY-MM-DD)
 export const todayOnCampus = () =>
@@ -35,6 +37,14 @@ export function hasStarted(date, startTime) {
   const now = nowOnCampus();
   const day = String(date).slice(0, 10);
   return day < now.date || (day === now.date && startTime.slice(0, 5) <= now.time);
+}
+
+// Last day faculty can still correct attendance for an event on `date`,
+// or null once that day has passed
+export function attendanceCorrectableUntil(date) {
+  if (!date) return null;
+  const closesOn = addDays(String(date).slice(0, 10), ATTENDANCE_EDIT_DAYS);
+  return todayOnCampus() <= closesOn ? closesOn : null;
 }
 
 // "YYYY-MM-DD" plus n days
