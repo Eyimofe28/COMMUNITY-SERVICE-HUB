@@ -27,7 +27,7 @@ import greetingsImg from "./greetings.png";
 import StudentSidebar from "./StudentSidebar";
 
 import Modal from "@mui/material/Modal";
-import { formatDate } from "../../utils/dates";
+import { formatDate, formatTimeRange, formatHours } from "../../utils/dates";
 
 
 function getIconForCategory(category) {
@@ -312,7 +312,7 @@ export default function StudentDashboard() {
               : "";
             const timeRange =
               opp.Start_Time && opp.End_Time
-                ? `${opp.Start_Time} – ${opp.End_Time}`
+                ? formatTimeRange(opp.Start_Time, opp.End_Time)
                 : "";
 
             return (
@@ -382,7 +382,7 @@ export default function StudentDashboard() {
                         variant="body2"
                         sx={{ color: "#111827", fontWeight: 600 }}
                       >
-                        {opp.Duration} hrs
+                        {formatHours(opp.Duration)}
                       </Typography>
                     )}
                     {(date || timeRange) && (

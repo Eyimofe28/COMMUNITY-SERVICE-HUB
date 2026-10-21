@@ -1,5 +1,5 @@
 const db = require("../config/db");
-const { todayOnCampus, validateOpportunitySchedule } = require("../utils/dates");
+const { todayOnCampus, durationHours, validateOpportunitySchedule } = require("../utils/dates");
 
 // Create Opportunity (Faculty Only)
 exports.createOpportunity = async (req, res) => {
@@ -9,22 +9,21 @@ exports.createOpportunity = async (req, res) => {
     date,
     startTime,
     endTime,
-    duration,
     location,
   } = req.body;
 
   try {
     // Validate required fields
-    if (!title || !date || !startTime || !endTime || !duration) {
+    if (!title || !date || !startTime || !endTime) {
       return res.status(400).json({
         message:
-          "Missing required fields: Title, Date, Start Time, End Time, Duration.",
+          "Missing required fields: Title, Date, Start Time, End Time.",
       });
     }
 
-    // Date must be tomorrow .. 1 year ahead (campus time); times on the hour,
-    // end after start, and duration matching the times (see utils/dates.js)
-    const scheduleError = validateOpportunitySchedule({ date, startTime, endTime, duration });
+    // Date must be tomorrow .. 1 year ahead (campus time); times in 30-minute
+    // steps between 6 AM and 10 PM, lasting 30 min - 12 hrs (see utils/dates.js)
+    const scheduleError = validateOpportunitySchedule({ date, startTime, endTime });
     if (scheduleError) {
       return res.status(400).json({ message: scheduleError });
     }
@@ -66,7 +65,7 @@ exports.createOpportunity = async (req, res) => {
         date,
         startTime,
         endTime,
-        duration,
+        durationHours(startTime, endTime), // Duration is calculated, never taken from the user
         location || null,
         facultyName,            // ✅ actual full name from users table
       ]

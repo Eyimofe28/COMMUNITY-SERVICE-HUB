@@ -11,12 +11,24 @@ import {
   IconButton,
   Modal,
   Tooltip,
+  MenuItem,
 } from "@mui/material";
 
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import InfoRoundedIcon from "@mui/icons-material/InfoRounded";
 import FacultySidebar from "./FacultySidebar";
-import { todayOnCampus, addDays, MAX_DAYS_AHEAD } from "../../utils/dates";
+import {
+  todayOnCampus,
+  addDays,
+  MAX_DAYS_AHEAD,
+  TIME_OPTIONS,
+  LATEST_END,
+  MIN_LENGTH_MINUTES,
+  MAX_LENGTH_MINUTES,
+  toMinutes,
+  formatTime,
+  formatDurationMinutes,
+} from "../../utils/dates";
 
 export default function FacultyCreateOpportunity() {
   const [form, setForm] = useState({
@@ -26,7 +38,6 @@ export default function FacultyCreateOpportunity() {
     Date: "",
     Start_Time: "",
     End_Time: "",
-    Duration: "",
   });
 
   const [loading, setLoading] = useState(false);
@@ -34,7 +45,15 @@ export default function FacultyCreateOpportunity() {
   const [openModal, setOpenModal] = useState(false);
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setForm((prev) => {
+      const next = { ...prev, [name]: value };
+      // A new start time can make the chosen end time invalid - clear it
+      if (name === "Start_Time" && next.End_Time && !endTimeChoices(value).includes(next.End_Time)) {
+        next.End_Time = "";
+      }
+      return next;
+    });
   };
 
   // Allowed date window (campus time): tomorrow .. MAX_DAYS_AHEAD days ahead.
@@ -42,13 +61,22 @@ export default function FacultyCreateOpportunity() {
   const earliestDate = addDays(todayOnCampus(), 1);
   const latestDate = addDays(todayOnCampus(), MAX_DAYS_AHEAD);
 
-  // Hours between start and end ("09:00" -> "12:00" = 3); null if end is not after start
-  const calculateDuration = () => {
-    if (!form.Start_Time || !form.End_Time) return null;
+  // Time choices (30-minute steps, 6:00 AM - 10:00 PM). Start can be at most
+  // 30 minutes before 10 PM; End is always 30 min - 12 hrs after the start.
+  const startTimeChoices = TIME_OPTIONS.filter(
+    (t) => toMinutes(t) <= toMinutes(LATEST_END) - MIN_LENGTH_MINUTES
+  );
+  function endTimeChoices(start) {
+    if (!start) return [];
+    return TIME_OPTIONS.filter((t) => {
+      const length = toMinutes(t) - toMinutes(start);
+      return length >= MIN_LENGTH_MINUTES && length <= MAX_LENGTH_MINUTES;
+    });
+  }
 
-    const diff = Number(form.End_Time.slice(0, 2)) - Number(form.Start_Time.slice(0, 2));
-    return diff > 0 ? diff : null;
-  };
+  // Duration is calculated from the times (never typed in), e.g. 150 minutes
+  const durationMinutes =
+    form.Start_Time && form.End_Time ? toMinutes(form.End_Time) - toMinutes(form.Start_Time) : null;
 
   const showError = (msg) => {
     setErrorMessage(msg);
@@ -56,7 +84,7 @@ export default function FacultyCreateOpportunity() {
   };
 
   const handleSubmit = async () => {
-    const requiredFields = ["Title", "Location", "Date", "Start_Time", "End_Time", "Duration"];
+    const requiredFields = ["Title", "Location", "Date", "Start_Time", "End_Time"];
 
     const missing = requiredFields.filter((f) => !form[f]);
 
@@ -75,41 +103,23 @@ export default function FacultyCreateOpportunity() {
       return showError(`Opportunities can be scheduled at most ${MAX_DAYS_AHEAD} days ahead.`);
     }
 
-    // Enforce hourly times on frontend
-    const validHourly = (t) => t.endsWith(":00");
-
-    if (!validHourly(form.Start_Time) || !validHourly(form.End_Time)) {
-      return showError("Start and End times must fall on the hour (e.g., 09:00, 14:00).");
-    }
-
-
-    const calculated = calculateDuration();
-    const manualDuration = parseFloat(form.Duration);
-
-    if (calculated === null) {
-      return showError("End Time must be later than Start Time.");
-    }
-
-    if (manualDuration !== calculated) {
-      return showError(
-        `Duration mismatch: Expected ${calculated} hours based on times entered, but received ${manualDuration} hours.`
-      );
+    // The dropdowns only offer valid times, so this is a safety net
+    if (!endTimeChoices(form.Start_Time).includes(form.End_Time)) {
+      return showError("Please choose an End Time 30 minutes to 12 hours after the Start Time.");
     }
 
     try {
       setLoading(true);
 
+      // No duration is sent - the backend calculates it from the times
       const payload = {
-      title: form.Title,
-      description: form.Description,
-      location: form.Location,
-      date: form.Date,
-      startTime: form.Start_Time,
-      endTime: form.End_Time,
-      duration: form.Duration,
-    };
-
-
+        title: form.Title,
+        description: form.Description,
+        location: form.Location,
+        date: form.Date,
+        startTime: form.Start_Time,
+        endTime: form.End_Time,
+      };
 
       await api.post("/opportunity/create", payload);
 
@@ -193,55 +203,63 @@ export default function FacultyCreateOpportunity() {
             />
           </Grid>
 
-          <Grid size={{ xs: 12, md: 6 }}>
+          {/* Times: dropdowns of valid choices only (30-minute steps, shown as 12-hour) */}
+          <Grid size={{ xs: 12, md: 4 }}>
             <TextField
+              select
               fullWidth
-              type="time"
               label="Start Time"
               name="Start_Time"
               value={form.Start_Time}
               onChange={handleChange}
-              slotProps={{
-                inputLabel: { shrink: true },
-                htmlInput: { step: 3600 }, // ⬅ Only hourly increments
-              }}
-            />
+            >
+              {startTimeChoices.map((t) => (
+                <MenuItem key={t} value={t}>
+                  {formatTime(t)}
+                </MenuItem>
+              ))}
+            </TextField>
           </Grid>
 
-          <Grid size={{ xs: 12, md: 6 }}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <TextField
+              select
               fullWidth
-              type="time"
               label="End Time"
               name="End_Time"
               value={form.End_Time}
               onChange={handleChange}
-              slotProps={{
-                inputLabel: { shrink: true },
-                htmlInput: { step: 3600 }, // ⬅ Only hourly
-              }}
+              disabled={!form.Start_Time}
+              helperText={form.Start_Time ? " " : "Choose a start time first"}
+            >
+              {endTimeChoices(form.Start_Time).map((t) => (
+                <MenuItem key={t} value={t}>
+                  {formatTime(t)}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
+
+          {/* Duration: calculated from the times, not typed */}
+          <Grid size={{ xs: 12, md: 4 }}>
+            <TextField
+              fullWidth
+              label="Duration"
+              value={durationMinutes ? formatDurationMinutes(durationMinutes) : ""}
+              placeholder="Calculated from the times"
+              helperText="Calculated automatically"
+              slotProps={{ inputLabel: { shrink: true }, htmlInput: { readOnly: true, tabIndex: -1 } }}
             />
           </Grid>
 
-          {/* Info tooltip about time format */}
+          {/* Info tooltip about the time rules */}
           <Grid size={12} sx={{ display: "flex", alignItems: "center", gap: 1, mt: -2 }}>
-            <Tooltip title="24 Hour Format Timing" arrow>
+            <Tooltip title="Times are in 30-minute steps" arrow>
               <InfoRoundedIcon sx={{ fontSize: 20, color: "#0B3D2E", cursor: "pointer" }} />
             </Tooltip>
             <Typography variant="body2" sx={{ color: "#6B7280" }}>
-              Times are on the hour, in 24-hour format (e.g. 14:00 = 2 PM).
+              Opportunities run between 6:00 AM and 10:00 PM and last 30 minutes to 12 hours.
             </Typography>
-          </Grid>
-
-          {/* Duration */}
-          <Grid size={{ xs: 12, md: 6 }}>
-            <TextField
-              fullWidth
-              label="Duration (hrs)"
-              name="Duration"
-              value={form.Duration}
-              onChange={handleChange}
-            />
           </Grid>
 
           {/* Description */}

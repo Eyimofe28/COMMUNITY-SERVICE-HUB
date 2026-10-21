@@ -27,7 +27,7 @@ import WorkOutlineRoundedIcon from "@mui/icons-material/WorkOutlineRounded";
 
 import FacultySidebar from "./FacultySidebar";
 import greetingsImg from "./greetings.png";
-import { formatDate } from "../../utils/dates";
+import { formatDate, formatTimeRange, formatHours } from "../../utils/dates";
 
 // ---------- ICON PICKER ----------
 function getIconForCategory(category) {
@@ -161,7 +161,7 @@ export default function FacultyDashboard() {
     const expanded = expandedId === id;
 
     const date = opp.Date ? formatDate(opp.Date) : "";
-    const timeRange = opp.Start_Time && opp.End_Time ? `${opp.Start_Time} – ${opp.End_Time}` : "";
+    const timeRange = opp.Start_Time && opp.End_Time ? formatTimeRange(opp.Start_Time, opp.End_Time) : "";
 
     return (
       <Paper
@@ -212,7 +212,7 @@ export default function FacultyDashboard() {
           <Box sx={{ textAlign: "right" }}>
             {opp.Duration && (
               <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                {opp.Duration} hrs
+                {formatHours(opp.Duration)}
               </Typography>
             )}
             <Typography variant="body2" sx={{ color: "#6B7280" }}>

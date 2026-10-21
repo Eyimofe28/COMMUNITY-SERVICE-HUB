@@ -18,8 +18,21 @@ const CAMPUS_TIME_ZONE = process.env.APP_TIMEZONE || "America/Chicago";
 // Opportunities can be scheduled from tomorrow up to this many days ahead
 const MAX_DAYS_AHEAD = 365;
 
+// Time rules: 30-minute steps, events between 6:00 AM and 10:00 PM,
+// lasting 30 minutes to 12 hours (same-day only)
+const EARLIEST_START = "06:00";
+const LATEST_END = "22:00";
+const MIN_LENGTH_MINUTES = 30;
+const MAX_LENGTH_MINUTES = 12 * 60;
+
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
-const HOURLY_TIME_REGEX = /^([01]\d|2[0-3]):00$/; // "09:00", "14:00"
+const HALF_HOUR_TIME_REGEX = /^([01]\d|2[0-3]):(00|30)$/; // "09:00", "14:30"
+
+// "HH:MM" -> minutes since midnight ("14:30" -> 870)
+const toMinutes = (time) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
+
+// Length of an event in hours, e.g. "09:00" -> "11:30" = 2.5 (stored as Duration)
+const durationHours = (startTime, endTime) => (toMinutes(endTime) - toMinutes(startTime)) / 60;
 
 // Today's date on campus as "YYYY-MM-DD"
 function todayOnCampus(now = new Date()) {
@@ -41,9 +54,10 @@ function isValidDate(ymd) {
     return check.getUTCFullYear() === y && check.getUTCMonth() === m - 1 && check.getUTCDate() === d;
 }
 
-// Checks an opportunity's date, start/end times and duration.
+// Checks an opportunity's date and start/end times. (Duration is not taken from
+// the user - it is calculated from the times with durationHours.)
 // Returns an error message, or null when everything is valid.
-function validateOpportunitySchedule({ date, startTime, endTime, duration }) {
+function validateOpportunitySchedule({ date, startTime, endTime }) {
     if (!isValidDate(date)) {
         return "Please choose a valid date.";
     }
@@ -59,20 +73,26 @@ function validateOpportunitySchedule({ date, startTime, endTime, duration }) {
     }
 
     if (typeof startTime !== "string" || typeof endTime !== "string" ||
-        !HOURLY_TIME_REGEX.test(startTime) || !HOURLY_TIME_REGEX.test(endTime)) {
-        return "Start Time and End Time must be on the hour (e.g., 09:00, 14:00, 18:00).";
+        !HALF_HOUR_TIME_REGEX.test(startTime) || !HALF_HOUR_TIME_REGEX.test(endTime)) {
+        return "Start Time and End Time must be on the hour or half hour (e.g., 9:00 AM, 2:30 PM).";
     }
 
-    const hours = Number(endTime.slice(0, 2)) - Number(startTime.slice(0, 2));
-    if (hours <= 0) {
+    if (startTime < EARLIEST_START || endTime > LATEST_END) {
+        return "Opportunities must take place between 6:00 AM and 10:00 PM.";
+    }
+
+    const minutes = toMinutes(endTime) - toMinutes(startTime);
+    if (minutes <= 0) {
         return "End Time must be later than Start Time.";
     }
-
-    if (Number(duration) !== hours) {
-        return `Duration must match the times entered (${hours} hour${hours === 1 ? "" : "s"}).`;
+    if (minutes < MIN_LENGTH_MINUTES || minutes > MAX_LENGTH_MINUTES) {
+        return "Opportunities must last between 30 minutes and 12 hours.";
     }
 
     return null;
 }
 
-module.exports = { CAMPUS_TIME_ZONE, MAX_DAYS_AHEAD, todayOnCampus, addDays, isValidDate, validateOpportunitySchedule };
+module.exports = {
+    CAMPUS_TIME_ZONE, MAX_DAYS_AHEAD,
+    todayOnCampus, addDays, isValidDate, durationHours, validateOpportunitySchedule,
+};
