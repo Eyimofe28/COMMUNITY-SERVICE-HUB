@@ -12,7 +12,13 @@
 //   Traffic to Supabase is encrypted with TLS.
 // =============================================================================
 
-const { Pool } = require('pg');
+const { Pool, types } = require('pg');
+
+// Return DATE columns (e.g. opportunity."Date") as plain "YYYY-MM-DD" text.
+// By default pg turns them into a JavaScript Date at midnight server time, which
+// can shift to the previous day when shown in another time zone.
+const DATE_TYPE_ID = 1082;
+types.setTypeParser(DATE_TYPE_ID, (value) => value);
 
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,

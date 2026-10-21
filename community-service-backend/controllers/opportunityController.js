@@ -1,4 +1,5 @@
 const db = require("../config/db");
+const { todayOnCampus, durationHours, validateOpportunitySchedule } = require("../utils/dates");
 
 // Create Opportunity (Faculty Only)
 exports.createOpportunity = async (req, res) => {
@@ -8,42 +9,23 @@ exports.createOpportunity = async (req, res) => {
     date,
     startTime,
     endTime,
-    duration,
     location,
   } = req.body;
 
   try {
     // Validate required fields
-    if (!title || !date || !startTime || !endTime || !duration) {
+    if (!title || !date || !startTime || !endTime) {
       return res.status(400).json({
         message:
-          "Missing required fields: Title, Date, Start Time, End Time, Duration.",
+          "Missing required fields: Title, Date, Start Time, End Time.",
       });
     }
 
-    // Prevent creating opportunities in the past
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // normalize to midnight
-
-    const opportunityDate = new Date(date);
-    opportunityDate.setHours(0, 0, 0, 0);
-
-    if (opportunityDate < today) {
-    return res.status(400).json({
-        message: "You cannot create an opportunity for a past date."
-    });
-    }
-
-    // Ensure start and end times are hourly times only (minutes must be 00)
-    const isHourly = (timeStr) => {
-    // Expected formats: "14:00", "09:00", "18:00"
-    return /^([01]\d|2[0-3]):00$/.test(timeStr);
-    };
-
-    if (!isHourly(startTime) || !isHourly(endTime)) {
-    return res.status(400).json({
-        message: "Start Time and End Time must be hourly (e.g., 09:00, 14:00, 18:00)."
-    });
+    // Date must be tomorrow .. 1 year ahead (campus time); times in 30-minute
+    // steps between 6 AM and 10 PM, lasting 30 min - 12 hrs (see utils/dates.js)
+    const scheduleError = validateOpportunitySchedule({ date, startTime, endTime });
+    if (scheduleError) {
+      return res.status(400).json({ message: scheduleError });
     }
 
     // This is the userId from your JWT (faculty is a subtype of users)
@@ -83,7 +65,7 @@ exports.createOpportunity = async (req, res) => {
         date,
         startTime,
         endTime,
-        duration,
+        durationHours(startTime, endTime), // Duration is calculated, never taken from the user
         location || null,
         facultyName,            // ✅ actual full name from users table
       ]
@@ -180,12 +162,13 @@ exports.listApproved = async (req, res) => {
                 "Faculty_ID"
              FROM opportunity
              WHERE "Approval_Status" = 'Approved'
-               AND "Date" >= CURRENT_DATE    -- ⬅️ Only show today or future
+               AND "Date" >= $1               -- ⬅️ Only show today or future (campus date)
                AND "Opportunity_ID" NOT IN (
                    SELECT DISTINCT "Opportunity_ID"
                    FROM attendance              -- ⬅️ Exclude completed
                )
-             ORDER BY "Date" ASC, "Start_Time" ASC`
+             ORDER BY "Date" ASC, "Start_Time" ASC`,
+            [todayOnCampus()]
         );
 
         return res.status(200).json({

@@ -27,6 +27,7 @@ import greetingsImg from "./greetings.png";
 import StudentSidebar from "./StudentSidebar";
 
 import Modal from "@mui/material/Modal";
+import { formatDate, formatTimeRange, formatHours } from "../../utils/dates";
 
 
 function getIconForCategory(category) {
@@ -248,7 +249,7 @@ export default function StudentDashboard() {
               variant="h4"
               sx={{ fontWeight: 800, color: "#111827", mb: 1 }}
             >
-              Hello, Student!
+              Hello, {firstName}!
             </Typography>
             <Typography sx={{ color: "#4B5563" }}>
               It&apos;s good to see you again. Explore new opportunities today.
@@ -307,11 +308,11 @@ export default function StudentDashboard() {
             const isExpanded = expandedId === id;
 
             const date = opp.Date
-              ? new Date(opp.Date).toLocaleDateString()
+              ? formatDate(opp.Date)
               : "";
             const timeRange =
               opp.Start_Time && opp.End_Time
-                ? `${opp.Start_Time} – ${opp.End_Time}`
+                ? formatTimeRange(opp.Start_Time, opp.End_Time)
                 : "";
 
             return (
@@ -381,7 +382,7 @@ export default function StudentDashboard() {
                         variant="body2"
                         sx={{ color: "#111827", fontWeight: 600 }}
                       >
-                        {opp.Duration} hrs
+                        {formatHours(opp.Duration)}
                       </Typography>
                     )}
                     {(date || timeRange) && (

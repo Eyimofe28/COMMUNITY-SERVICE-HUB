@@ -24,6 +24,7 @@ import WorkOutlineRoundedIcon from "@mui/icons-material/WorkOutlineRounded";
 
 import EmojiEventsRoundedIcon from "@mui/icons-material/EmojiEventsRounded";
 import StudentSidebar from "./StudentSidebar";
+import { formatDate, formatTimeRange, formatHours } from "../../utils/dates";
 
 
 function getIconForCategory(category) {
@@ -197,8 +198,8 @@ export default function CompletedOpportunities() {
         ) : (
           completed.map((opp) => {
             const id = opp.Opportunity_ID;
-            const date = new Date(opp.Date).toLocaleDateString();
-            const timeRange = `${opp.Start_Time} – ${opp.End_Time}`;
+            const date = formatDate(opp.Date);
+            const timeRange = formatTimeRange(opp.Start_Time, opp.End_Time);
 
             return (
               <Paper
@@ -240,7 +241,7 @@ export default function CompletedOpportunities() {
 
                   <Box sx={{ textAlign: "right" }}>
                     <Typography sx={{ fontWeight: 600, color: "#064E3B" }}>
-                      {opp.Hours_Earned} hrs earned
+                      {formatHours(opp.Hours_Earned)} earned
                     </Typography>
                     <Typography variant="body2" sx={{ color: "#0F766E" }}>
                       {date} • {timeRange}
