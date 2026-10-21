@@ -15,6 +15,7 @@ const jwt = require("jsonwebtoken");
 const db = require("../config/db");
 const { validatePassword, hashPassword, verifyPassword, needsRehash } = require("../utils/passwordPolicy");
 const { normalizeEmail, validateName, validateEmail, validateDepartment } = require("../utils/validation");
+const { effectiveRole } = require("../utils/roles");
 
 // Postgres error code for a UNIQUE constraint violation (e.g. duplicate email)
 const UNIQUE_VIOLATION = "23505";
@@ -185,9 +186,7 @@ exports.login = async (req, res) => {
       profile = faculty[0] || {};
 
       // Faculty with the Approver flag get the "approver" role for routing/permissions
-      if (profile.Approver === true) {
-        role = "approver";
-      }
+      role = effectiveRole(role, profile.Approver);
     }
 
     // ---- 5. Issue a signed token (JWT) ----
@@ -213,6 +212,20 @@ exports.login = async (req, res) => {
     console.error("Login Error:", error);
     return res.status(500).json({ message: "Server error during login. Please try again." });
   }
+};
+
+// -----------------------------------------------------------------------------
+// GET /api/auth/me  -  who is logged in, with their CURRENT role
+// Requires a valid token. The frontend calls this when a page loads so a role
+// changed by an admin (e.g. promoted to approver) is picked up without logging
+// in again. The role is the one authMiddleware read from the database.
+// -----------------------------------------------------------------------------
+exports.me = (req, res) => {
+  return res.status(200).json({
+    userId: req.user.userId,
+    role: req.user.role,
+    firstName: req.user.info.First_Name,
+  });
 };
 
 // -----------------------------------------------------------------------------

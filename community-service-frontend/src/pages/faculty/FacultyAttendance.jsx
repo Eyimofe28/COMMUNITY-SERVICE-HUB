@@ -1,5 +1,17 @@
+// =============================================================================
+// Faculty attendance page
+// -----------------------------------------------------------------------------
+// Rules (enforced by the backend, mirrored here so the page explains them):
+//   - attendance opens when the event starts and can be submitted or CORRECTED
+//     until 14 days after the event date (attendanceWindow from the API)
+//   - only registered students can be marked; absent students earn 0 hours
+//   - hours earned: 0.5-hour steps from 0.5 up to the event's duration
+//   - saving again never double-counts: the backend recalculates each
+//     student's total from their attendance records
+// =============================================================================
+
 import { useEffect, useState } from "react";
-import api from "../../api/axios";
+import api, { getErrorMessage } from "../../api/axios";
 
 import {
   Box,
@@ -16,6 +28,7 @@ import {
   Button,
   Stack,
   Modal,
+  Alert,
 } from "@mui/material";
 
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
@@ -41,6 +54,15 @@ const modalStyle = {
   textAlign: "center",
 };
 
+// Hours earned must be 0.5-hour steps between 0.5 and the event's duration
+const hoursError = (value, maxHours) => {
+  const h = Number(value);
+  if (!Number.isFinite(h) || h < 0.5 || h > maxHours || !Number.isInteger(h * 2)) {
+    return `0.5 – ${maxHours} hrs, in half-hour steps`;
+  }
+  return "";
+};
+
 export default function FacultyAttendance() {
   const token = localStorage.getItem("token");
   const firstName = localStorage.getItem("firstName") || "Faculty";
@@ -52,12 +74,19 @@ export default function FacultyAttendance() {
   const [students, setStudents] = useState([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
 
+  // From the API: may attendance be saved right now, and until when
+  const [attendanceWindow, setAttendanceWindow] = useState(null);
+  const [maxHours, setMaxHours] = useState(0);
+  const [hasRecords, setHasRecords] = useState(false);
+
   const [attendanceMap, setAttendanceMap] = useState({});
   const [saving, setSaving] = useState(false);
+  const [errorText, setErrorText] = useState("");
 
-  const [submitted, setSubmitted] = useState(false);
   const [openConfirm, setOpenConfirm] = useState(false);
   const [openSuccess, setOpenSuccess] = useState(false);
+
+  const canEdit = Boolean(attendanceWindow?.open);
 
   // ---------------------------------------------------
   // 1. Load approved opportunities
@@ -66,9 +95,7 @@ export default function FacultyAttendance() {
     const fetchSubmissions = async () => {
       setLoadingOpps(true);
       try {
-        const res = await api.get(
-          "/opportunity/my-submissions"
-        );
+        const res = await api.get("/opportunity/my-submissions");
 
         const rows = res.data.submissions || [];
         const approved = rows.filter((o) => o.Approval_Status === "Approved");
@@ -89,68 +116,68 @@ export default function FacultyAttendance() {
   }, [token]);
 
   // ---------------------------------------------------
-  // 2. Load registered students
+  // 2. Load registered students + attendance window
   // ---------------------------------------------------
+  const loadStudents = async (opportunityId) => {
+    setLoadingStudents(true);
+    setErrorText("");
+
+    try {
+      const res = await api.get(`/opportunity/${opportunityId}/registrations`);
+
+      const list = res.data.students || [];
+      const max = Number(res.data.maxHours) || 0;
+      setStudents(list);
+      setMaxHours(max);
+      setAttendanceWindow(res.data.attendanceWindow || null);
+      setHasRecords(list.some((stu) => stu.Attended !== null && stu.Attended !== undefined));
+
+      // Start from saved values; unsaved students default to attended for the full duration
+      const initial = {};
+      list.forEach((stu) => {
+        const saved = stu.Attended !== null && stu.Attended !== undefined;
+        initial[stu.Student_ID] = {
+          attended: saved ? stu.Attended === true : true,
+          hoursEarned: saved && stu.Attended ? Number(stu.Hours_Earned) : max,
+        };
+      });
+
+      setAttendanceMap(initial);
+    } catch (err) {
+      console.error("Load registrations error:", err);
+      setStudents([]);
+      setErrorText(getErrorMessage(err, "Failed to load registered students."));
+    } finally {
+      setLoadingStudents(false);
+    }
+  };
+
   useEffect(() => {
-    if (!selectedOppId) return;
-
-    const fetchStudents = async () => {
-      setLoadingStudents(true);
-
-      try {
-        const res = await api.get(
-          `/opportunity/${selectedOppId}/registrations`
-        );
-
-        const list = res.data.students || [];
-        setStudents(list);
-
-        const selectedOpp = opps.find((o) => o.Opportunity_ID === selectedOppId);
-        const defaultHours = selectedOpp?.Duration || 0;
-
-        // NEW: detect submitted
-        const alreadySubmitted = list.some(stu => stu.Attended !== null && stu.Attended !== undefined);
-        setSubmitted(alreadySubmitted);
-
-        const initial = {};
-        list.forEach((stu) => {
-          initial[stu.Student_ID] = {
-            attended: stu.Attended === true,
-            hoursEarned: stu.Hours_Earned ?? defaultHours,
-          };
-        });
-
-        setAttendanceMap(initial);
-
-
-      } catch (err) {
-        console.error("Load registrations error:", err);
-        setStudents([]);
-      } finally {
-        setLoadingStudents(false);
-      }
-    };
-
-    fetchStudents();
-  }, [selectedOppId, token, opps]);
+    if (selectedOppId) loadStudents(selectedOppId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedOppId]);
 
   // ---------------------------------------------------
-  // 3. Toggle attendance
+  // 3. Mark attended / absent, change hours
   // ---------------------------------------------------
   const handleToggleAttended = (studentId) => {
-    if (submitted) return; // disallow edits
+    if (!canEdit) return;
 
-    setAttendanceMap((prev) => ({
-      ...prev,
-      [studentId]: {
-        ...prev[studentId],
-        attended: !prev[studentId].attended,
-      },
-    }));
+    setAttendanceMap((prev) => {
+      const attended = !prev[studentId].attended;
+      return {
+        ...prev,
+        [studentId]: {
+          attended,
+          // absent = 0 hours; marking present again restores the full duration
+          hoursEarned: attended ? maxHours : 0,
+        },
+      };
+    });
   };
 
   const handleHoursChange = (studentId, value) => {
-    if (submitted) return; // disallow edits
+    if (!canEdit) return;
 
     setAttendanceMap((prev) => ({
       ...prev,
@@ -161,33 +188,34 @@ export default function FacultyAttendance() {
     }));
   };
 
+  const invalidHours = Object.values(attendanceMap).some(
+    (e) => e.attended && hoursError(e.hoursEarned, maxHours)
+  );
+
   // ---------------------------------------------------
-  // 4. FINAL SAVE (after confirmation)
+  // 4. SAVE (after confirmation) - also used for corrections
   // ---------------------------------------------------
   const confirmSaveAttendance = async () => {
     setOpenConfirm(false);
     setSaving(true);
+    setErrorText("");
 
     try {
       const payload = Object.entries(attendanceMap).map(
         ([studentId, { attended, hoursEarned }]) => ({
           studentId: Number(studentId),
           attended: !!attended,
-          hoursEarned: attended ? Number(hoursEarned) || 0 : 0,
+          hoursEarned: attended ? Number(hoursEarned) : 0,
         })
       );
 
-      await api.post(
-        `/opportunity/${selectedOppId}/attendance`,
-        { attendance: payload }
-      );
+      await api.post(`/opportunity/${selectedOppId}/attendance`, { attendance: payload });
 
-      setSubmitted(true);
+      setHasRecords(true);
       setOpenSuccess(true);
-
     } catch (err) {
       console.error("Submit attendance error:", err);
-      alert("Failed to submit attendance.");
+      setErrorText(getErrorMessage(err, "Failed to save attendance. Nothing was saved."));
     } finally {
       setSaving(false);
     }
@@ -267,12 +295,8 @@ export default function FacultyAttendance() {
                 >
                   <ListItemText
                     primary={opp.Title}
-                    secondary={
-                      opp.Date
-                        ? formatDate(opp.Date)
-                        : ""
-                    }
-                    primaryTypographyProps={{ fontWeight: 600 }}
+                    secondary={opp.Date ? formatDate(opp.Date) : ""}
+                    slotProps={{ primary: { fontWeight: 600 } }}
                   />
                 </ListItemButton>
               ))}
@@ -319,6 +343,21 @@ export default function FacultyAttendance() {
 
           <Divider sx={{ mb: 2 }} />
 
+          {/* When attendance can be saved */}
+          {selectedOppId && !loadingStudents && attendanceWindow && (
+            <Alert severity={canEdit ? "info" : "warning"} sx={{ mb: 2 }}>
+              {canEdit
+                ? `You can submit or correct attendance until ${formatDate(attendanceWindow.closesOn)}.`
+                : attendanceWindow.reason}
+            </Alert>
+          )}
+
+          {errorText && (
+            <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErrorText("")}>
+              {errorText}
+            </Alert>
+          )}
+
           {!selectedOppId ? (
             <Typography sx={{ color: "#6B7280", mt: 2 }}>
               Select an opportunity to view registered students.
@@ -339,6 +378,7 @@ export default function FacultyAttendance() {
                     attended: false,
                     hoursEarned: 0,
                   };
+                  const error = entry.attended ? hoursError(entry.hoursEarned, maxHours) : "";
 
                   return (
                     <Paper
@@ -371,6 +411,7 @@ export default function FacultyAttendance() {
                         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                           <Checkbox
                             checked={entry.attended}
+                            disabled={!canEdit}
                             onChange={() =>
                               handleToggleAttended(stu.Student_ID)
                             }
@@ -383,14 +424,17 @@ export default function FacultyAttendance() {
                           type="number"
                           label="Hours earned"
                           value={entry.hoursEarned}
+                          disabled={!canEdit || !entry.attended}
+                          error={!!error}
+                          helperText={error || " "}
                           onChange={(e) =>
                             handleHoursChange(
                               stu.Student_ID,
                               e.target.value
                             )
                           }
-                          sx={{ width: 110 }}
-                          inputProps={{ min: 0 }}
+                          sx={{ width: 150 }}
+                          slotProps={{ htmlInput: { min: 0.5, max: maxHours, step: 0.5 } }}
                         />
                       </Box>
                     </Paper>
@@ -399,22 +443,16 @@ export default function FacultyAttendance() {
               </Stack>
 
               {/* SAVE BUTTON + CONFIRM DIALOG */}
-                {students.length > 0 && (
-                <Box sx={{ textAlign: "right", mt: 3 }}>
-                    <Button
-                    variant="contained"
-                    sx={{
-                        bgcolor: submitted ? "#6B7280" : "#0B3D2E",
-                        cursor: submitted ? "not-allowed" : "pointer",
-                        px: 4,
-                    }}
-                    disabled={saving || submitted}
-                    onClick={() => setOpenConfirm(true)}
-                    >
-                    {submitted ? "Attendance Submitted" : saving ? "Saving..." : "Save Attendance"}
-                    </Button>
-                </Box>
-                )}
+              <Box sx={{ textAlign: "right", mt: 3 }}>
+                <Button
+                  variant="contained"
+                  sx={{ bgcolor: "#0B3D2E", px: 4 }}
+                  disabled={saving || !canEdit || invalidHours}
+                  onClick={() => setOpenConfirm(true)}
+                >
+                  {saving ? "Saving..." : hasRecords ? "Update Attendance" : "Save Attendance"}
+                </Button>
+              </Box>
             </>
           )}
 
@@ -422,12 +460,14 @@ export default function FacultyAttendance() {
           <Modal open={openConfirm} onClose={() => setOpenConfirm(false)}>
             <Box sx={modalStyle}>
               <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
-                Finalize Attendance?
+                {hasRecords ? "Update Attendance?" : "Save Attendance?"}
               </Typography>
 
               <Typography sx={{ color: "#4B5563", mb: 3 }}>
-                Once you submit attendance, <strong>you will not be able to make adjustments</strong>.
-                Are you sure you want to continue?
+                Students&apos; service hours will be updated.
+                {attendanceWindow?.closesOn && (
+                  <> You can still make corrections until <strong>{formatDate(attendanceWindow.closesOn)}</strong>.</>
+                )}
               </Typography>
 
               <Stack direction="row" spacing={2} justifyContent="center">
@@ -436,7 +476,7 @@ export default function FacultyAttendance() {
                   sx={{ px: 3 }}
                   onClick={() => setOpenConfirm(false)}
                 >
-                  No
+                  Cancel
                 </Button>
 
                 <Button
@@ -444,7 +484,7 @@ export default function FacultyAttendance() {
                   sx={{ bgcolor: "#0B3D2E", px: 3 }}
                   onClick={confirmSaveAttendance}
                 >
-                  Yes, Submit
+                  Yes, Save
                 </Button>
               </Stack>
             </Box>
@@ -458,11 +498,11 @@ export default function FacultyAttendance() {
               />
 
               <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
-                Attendance Submitted!
+                Attendance Saved!
               </Typography>
 
               <Typography sx={{ color: "#4B5563", mb: 4 }}>
-                Attendance records have been successfully saved. Students will be notified of their hours earned.
+                Attendance has been saved and students&apos; service hours are up to date.
               </Typography>
 
               <Button

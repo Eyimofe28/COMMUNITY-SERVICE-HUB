@@ -92,7 +92,50 @@ function validateOpportunitySchedule({ date, startTime, endTime }) {
     return null;
 }
 
+// ---------------------------------------------------------------------------
+// Event timing rules (registration, attendance, approval)
+// ---------------------------------------------------------------------------
+
+// Faculty can submit or correct attendance for this many days after the event date
+const ATTENDANCE_EDIT_DAYS = 14;
+
+// Current date and time on campus: { date: "YYYY-MM-DD", time: "HH:MM" }
+function nowOnCampus(now = new Date()) {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: CAMPUS_TIME_ZONE,
+        year: "numeric", month: "2-digit", day: "2-digit",
+        hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+    }).formatToParts(now);
+    const get = (type) => parts.find((p) => p.type === type).value;
+    return { date: `${get("year")}-${get("month")}-${get("day")}`, time: `${get("hour")}:${get("minute")}` };
+}
+
+// True once the event's start time has passed on campus.
+// date = "YYYY-MM-DD", startTime = "HH:MM" or "HH:MM:SS" (as stored)
+function hasStarted(date, startTime, now = nowOnCampus()) {
+    return date < now.date || (date === now.date && startTime.slice(0, 5) <= now.time);
+}
+
+// Whether faculty may submit/correct attendance right now:
+// from the event's start time until ATTENDANCE_EDIT_DAYS days after its date.
+// Returns { open, closesOn, reason } - reason explains why it is closed.
+function attendanceWindow(date, startTime, now = nowOnCampus()) {
+    const closesOn = addDays(date, ATTENDANCE_EDIT_DAYS);
+    if (!hasStarted(date, startTime, now)) {
+        return { open: false, closesOn, reason: "Attendance opens when the event starts." };
+    }
+    if (now.date > closesOn) {
+        return {
+            open: false,
+            closesOn,
+            reason: `Attendance can only be submitted or corrected within ${ATTENDANCE_EDIT_DAYS} days of the event.`,
+        };
+    }
+    return { open: true, closesOn, reason: null };
+}
+
 module.exports = {
-    CAMPUS_TIME_ZONE, MAX_DAYS_AHEAD,
-    todayOnCampus, addDays, isValidDate, durationHours, validateOpportunitySchedule,
+    CAMPUS_TIME_ZONE, MAX_DAYS_AHEAD, ATTENDANCE_EDIT_DAYS,
+    todayOnCampus, nowOnCampus, addDays, isValidDate, durationHours,
+    hasStarted, attendanceWindow, validateOpportunitySchedule,
 };

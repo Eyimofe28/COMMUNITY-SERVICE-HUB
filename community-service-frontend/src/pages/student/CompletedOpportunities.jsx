@@ -44,6 +44,8 @@ export default function CompletedOpportunities() {
   const firstName = localStorage.getItem("firstName") || "Student";
 
   const [completed, setCompleted] = useState([]);
+  // Past opportunities the student was marked absent from (earn 0 hours)
+  const [missed, setMissed] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const TOTAL_REQUIRED_HOURS = 60;
@@ -55,12 +57,11 @@ export default function CompletedOpportunities() {
           "/opportunity/my-registrations"
         );
 
-        // Filter ONLY completed (Attended = true)
-        const attended = (res.data.opportunities || []).filter(
-          (opp) => opp.Attended === true
-        );
-
-        setCompleted(attended);
+        // History: attended ones count toward hours, missed ones (Attended = false)
+        // are listed separately. Not-yet-recorded ones stay on the Registered page.
+        const all = res.data.opportunities || [];
+        setCompleted(all.filter((opp) => opp.Attended === true));
+        setMissed(all.filter((opp) => opp.Attended === false));
       } catch (error) {
         console.error("Error fetching completed:", error);
       } finally {
@@ -71,9 +72,7 @@ export default function CompletedOpportunities() {
     fetchCompleted();
   }, [token]);
 
-  const totalHours = completed
-  .reduce((sum, opp) => sum + Number(opp.Hours_Earned || 0), 0)
-  .toFixed(0);
+  const totalHours = completed.reduce((sum, opp) => sum + Number(opp.Hours_Earned || 0), 0);
 
 
   const progressPercent = Math.min(
@@ -265,6 +264,47 @@ export default function CompletedOpportunities() {
               </Paper>
             );
           })
+        )}
+
+        {/* MISSED OPPORTUNITIES (marked absent - 0 hours) */}
+        {!loading && missed.length > 0 && (
+          <>
+            <Typography variant="h6" sx={{ fontWeight: 700, mt: 4, mb: 2 }}>
+              Missed
+            </Typography>
+            {missed.map((opp) => (
+              <Paper
+                key={opp.Opportunity_ID}
+                elevation={0}
+                sx={{
+                  borderRadius: "22px",
+                  p: 2.5,
+                  mb: 2,
+                  bgcolor: "#F9FAFB",
+                  border: "1px solid #E5E7EB",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 2,
+                }}
+              >
+                <Box>
+                  <Typography sx={{ fontWeight: 700, color: "#374151" }}>{opp.Title}</Typography>
+                  <Typography variant="body2" sx={{ color: "#6B7280" }}>
+                    {formatDate(opp.Date)} • {formatTimeRange(opp.Start_Time, opp.End_Time)}
+                  </Typography>
+                </Box>
+                <Box sx={{ textAlign: "right" }}>
+                  <Typography variant="body2" sx={{ fontWeight: 700, color: "#B91C1C" }}>
+                    ✖ Missed
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: "#6B7280" }}>
+                    0 hrs earned
+                  </Typography>
+                </Box>
+              </Paper>
+            ))}
+          </>
         )}
       </Box>
     </Box>

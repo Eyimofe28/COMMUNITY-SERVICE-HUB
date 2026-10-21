@@ -17,6 +17,26 @@ export const MAX_DAYS_AHEAD = 365;
 export const todayOnCampus = () =>
   new Intl.DateTimeFormat("en-CA", { timeZone: CAMPUS_TIME_ZONE }).format(new Date());
 
+// Current date and time on campus: { date: "YYYY-MM-DD", time: "HH:MM" }
+export function nowOnCampus() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: CAMPUS_TIME_ZONE,
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).formatToParts(new Date());
+  const get = (type) => parts.find((p) => p.type === type).value;
+  return { date: `${get("year")}-${get("month")}-${get("day")}`, time: `${get("hour")}:${get("minute")}` };
+}
+
+// True once an event's start time has passed on campus (same rule as the backend:
+// registration closes, approval is no longer possible, attendance opens)
+export function hasStarted(date, startTime) {
+  if (!date || !startTime) return false;
+  const now = nowOnCampus();
+  const day = String(date).slice(0, 10);
+  return day < now.date || (day === now.date && startTime.slice(0, 5) <= now.time);
+}
+
 // "YYYY-MM-DD" plus n days
 export function addDays(ymd, days) {
   const [y, m, d] = ymd.split("-").map(Number);
