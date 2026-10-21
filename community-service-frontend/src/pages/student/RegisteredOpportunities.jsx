@@ -30,7 +30,8 @@ import WorkOutlineRoundedIcon from "@mui/icons-material/WorkOutlineRounded";
 
 import greetingsImg from "./checklist.jpg";
 import StudentSidebar from "./StudentSidebar";
-import { formatDate, formatTimeRange, formatHours } from "../../utils/dates";
+import { formatDate, formatTimeRange, formatHours, hasStarted } from "../../utils/dates";
+import { getErrorMessage } from "../../api/axios";
 
 function getIconForCategory(category) {
   const normalized = (category || "").toLowerCase();
@@ -61,9 +62,11 @@ export default function RegisteredOpportunities() {
         "/opportunity/my-registrations"
       );
 
-      // Only keep opportunities where Attended !== true
+      // Only opportunities whose attendance has not been recorded yet.
+      // Once faculty record attendance, attended AND missed ones move to the
+      // Completed (history) page.
       const notCompleted = (res.data.opportunities || []).filter(
-        (opp) => opp.Attended !== true
+        (opp) => opp.Attended === null || opp.Attended === undefined
       );
 
       setRegistered(notCompleted);
@@ -92,7 +95,7 @@ export default function RegisteredOpportunities() {
       setRegistered((prev) => prev.filter((opp) => opp.Opportunity_ID !== opportunityId));
       alert("You have been unregistered.");
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to unregister.");
+      alert(getErrorMessage(err, "Failed to unregister."));
     } finally {
       setUnregisteringId(null);
     }
@@ -166,6 +169,8 @@ export default function RegisteredOpportunities() {
             const date = opp.Date ? formatDate(opp.Date) : "";
             const timeRange = formatTimeRange(opp.Start_Time, opp.End_Time);
             const isExpanded = expandedId === id;
+            // After the start time: no unregistering, waiting for faculty to take attendance
+            const started = hasStarted(opp.Date, opp.Start_Time);
 
             return (
               <Paper
@@ -227,12 +232,15 @@ export default function RegisteredOpportunities() {
                           Location: {opp.Location || "N/A"}
                         </Typography>
 
-                        <Typography variant="body2" sx={{ color: "#10B981" }}>
-                          Status: Registered
+                        <Typography variant="body2" sx={{ color: started ? "#B45309" : "#10B981" }}>
+                          {started
+                            ? "Status: Awaiting attendance from faculty"
+                            : "Status: Registered"}
                         </Typography>
                       </Stack>
 
-                      {/* UNREGISTER BUTTON */}
+                      {/* UNREGISTER BUTTON - only before the event starts */}
+                      {!started && (
                       <Button
                         variant="outlined"
                         color="error"
@@ -250,6 +258,7 @@ export default function RegisteredOpportunities() {
                       >
                         {unregisteringId === id ? "Unregistering..." : "Unregister"}
                       </Button>
+                      )}
                     </Box>
                   </>
                 )}

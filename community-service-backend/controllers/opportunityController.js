@@ -1,5 +1,11 @@
 const db = require("../config/db");
-const { todayOnCampus, durationHours, validateOpportunitySchedule } = require("../utils/dates");
+const {
+    nowOnCampus,
+    durationHours,
+    hasStarted,
+    attendanceWindow,
+    validateOpportunitySchedule,
+} = require("../utils/dates");
 
 // Create Opportunity (Faculty Only)
 exports.createOpportunity = async (req, res) => {
@@ -85,11 +91,15 @@ exports.createOpportunity = async (req, res) => {
 };
 
 exports.approveOpportunity = async (req, res) => {
-    const opportunityId = req.params.id;
+    const opportunityId = parseId(req.params.id);
     const approverId = req.user.userId;
     const { status, rejectionReason } = req.body;
 
     try {
+        if (!opportunityId) {
+            return res.status(400).json({ message: "Invalid opportunity." });
+        }
+
         // 1. Validate input
         if (!status || !["Approved", "Rejected"].includes(status)) {
             return res.status(400).json({
@@ -116,25 +126,45 @@ exports.approveOpportunity = async (req, res) => {
             });
         }
 
-        // 4. If rejecting, require rejectionReason
-        if (status === "Rejected" && (!rejectionReason || rejectionReason.trim() === "")) {
+        // 4. Decisions are final: only Pending opportunities can be approved/rejected
+        if (opportunity.Approval_Status !== "Pending") {
+            return res.status(409).json({
+                message: `This opportunity has already been ${opportunity.Approval_Status.toLowerCase()}.`
+            });
+        }
+
+        // 5. An event that has already started can no longer be approved
+        //    (rejecting it is still allowed, to clear it from the queue)
+        if (status === "Approved" && hasStarted(opportunity.Date, opportunity.Start_Time)) {
+            return res.status(400).json({
+                message: "This opportunity's start time has passed, so it can no longer be approved. You can reject it instead."
+            });
+        }
+
+        // 6. If rejecting, require rejectionReason
+        if (status === "Rejected" && (typeof rejectionReason !== "string" || rejectionReason.trim() === "")) {
             return res.status(400).json({
                 message: "Rejection reason is required when rejecting."
             });
         }
 
-        // 5. Approve or reject
-        await db.query(
+        // 7. Approve or reject. "AND Approval_Status = 'Pending'" makes this safe if
+        //    two approvers act at the same moment - only the first one counts.
+        const result = await db.query(
             `UPDATE opportunity
              SET "Approval_Status" = $1, "Rejection_Reason" = $2, "Approver_ID" = $3
-             WHERE "Opportunity_ID" = $4`,
+             WHERE "Opportunity_ID" = $4 AND "Approval_Status" = 'Pending'`,
             [
                 status,
-                status === "Rejected" ? rejectionReason : null,
+                status === "Rejected" ? rejectionReason.trim() : null,
                 approverId,
                 opportunityId
             ]
         );
+
+        if (result.rowCount === 0) {
+            return res.status(409).json({ message: "This opportunity was just decided by someone else." });
+        }
 
         return res.status(200).json({
             message: `Opportunity successfully ${status.toLowerCase()}.`
@@ -148,6 +178,8 @@ exports.approveOpportunity = async (req, res) => {
 
 exports.listApproved = async (req, res) => {
     try {
+        const now = nowOnCampus();
+
         const { rows: opportunities } = await db.query(
             `SELECT
                 "Opportunity_ID",
@@ -157,18 +189,17 @@ exports.listApproved = async (req, res) => {
                 "Start_Time",
                 "End_Time",
                 "Duration",
+                "Location",
                 "Person_In_Charge",
                 "Approval_Status",
                 "Faculty_ID"
              FROM opportunity
              WHERE "Approval_Status" = 'Approved'
-               AND "Date" >= $1               -- ⬅️ Only show today or future (campus date)
-               AND "Opportunity_ID" NOT IN (
-                   SELECT DISTINCT "Opportunity_ID"
-                   FROM attendance              -- ⬅️ Exclude completed
-               )
+               -- Only events that have not started yet (campus date/time):
+               -- registration closes when an event starts
+               AND ("Date" > $1 OR ("Date" = $1 AND "Start_Time" > $2))
              ORDER BY "Date" ASC, "Start_Time" ASC`,
-            [todayOnCampus()]
+            [now.date, now.time]
         );
 
         return res.status(200).json({
@@ -323,14 +354,28 @@ exports.listMySubmissions = async (req, res) => {
     }
 };
 
+// Reads "/:id" route parameters safely: a positive whole number, or null
+const parseId = (value) => {
+    const id = Number(value);
+    return Number.isInteger(id) && id > 0 ? id : null;
+};
+
+// -----------------------------------------------------------------------------
+// POST /api/opportunity/register/:id  -  student signs up for an opportunity
+// Rules: the opportunity must be approved and must not have started yet
+// (registration closes at the event's start time, campus time).
+// -----------------------------------------------------------------------------
 exports.registerForOpportunity = async (req, res) => {
     try {
         const studentId = req.user.userId;
-        const opportunityId = req.params.id;
+        const opportunityId = parseId(req.params.id);
+        if (!opportunityId) {
+            return res.status(400).json({ message: "Invalid opportunity." });
+        }
 
         // Check if opportunity exists and is approved
         const { rows: opp } = await db.query(
-            'SELECT * FROM opportunity WHERE "Opportunity_ID" = $1',
+            'SELECT "Approval_Status", "Date", "Start_Time" FROM opportunity WHERE "Opportunity_ID" = $1',
             [opportunityId]
         );
 
@@ -342,22 +387,22 @@ exports.registerForOpportunity = async (req, res) => {
             return res.status(400).json({ message: "You can only register for approved opportunities." });
         }
 
-        // Prevent duplicate registration
-        const { rows: existing } = await db.query(
-            'SELECT * FROM registration WHERE "Student_ID" = $1 AND "Opportunity_ID" = $2',
-            [studentId, opportunityId]
-        );
-
-        if (existing.length > 0) {
-            return res.status(400).json({ message: "You are already registered for this opportunity." });
+        if (hasStarted(opp[0].Date, opp[0].Start_Time)) {
+            return res.status(400).json({ message: "Registration is closed - this opportunity has already started." });
         }
 
-        // Insert registration
-        await db.query(
+        // Insert registration. The UNIQUE (Student_ID, Opportunity_ID) constraint
+        // makes a duplicate impossible; ON CONFLICT turns it into "no row inserted".
+        const result = await db.query(
             `INSERT INTO registration ("Student_ID", "Opportunity_ID", "Registration_Status")
-             VALUES ($1, $2, 'Registered')`,
+             VALUES ($1, $2, 'Registered')
+             ON CONFLICT ("Student_ID", "Opportunity_ID") DO NOTHING`,
             [studentId, opportunityId]
         );
+
+        if (result.rowCount === 0) {
+            return res.status(400).json({ message: "You are already registered for this opportunity." });
+        }
 
         return res.status(201).json({
             message: "Successfully registered for the opportunity."
@@ -369,19 +414,40 @@ exports.registerForOpportunity = async (req, res) => {
     }
 };
 
+// -----------------------------------------------------------------------------
+// DELETE /api/opportunity/unregister/:id  -  student cancels a registration
+// Rules: only before the event starts, and never once attendance is recorded
+// (otherwise hours could be left behind without a registration).
+// -----------------------------------------------------------------------------
 exports.unregisterFromOpportunity = async (req, res) => {
     try {
         const studentId = req.user.userId;
-        const opportunityId = req.params.id;
+        const opportunityId = parseId(req.params.id);
+        if (!opportunityId) {
+            return res.status(400).json({ message: "Invalid opportunity." });
+        }
 
-        // Check registration
-        const { rows: reg } = await db.query(
-            'SELECT * FROM registration WHERE "Student_ID" = $1 AND "Opportunity_ID" = $2',
+        // Registration + the event's timing + any attendance record, in one query
+        const { rows } = await db.query(
+            `SELECT o."Date", o."Start_Time", a."Attendance_ID"
+             FROM registration r
+             JOIN opportunity o ON o."Opportunity_ID" = r."Opportunity_ID"
+             LEFT JOIN attendance a
+                ON a."Student_ID" = r."Student_ID" AND a."Opportunity_ID" = r."Opportunity_ID"
+             WHERE r."Student_ID" = $1 AND r."Opportunity_ID" = $2`,
             [studentId, opportunityId]
         );
 
-        if (reg.length === 0) {
+        if (rows.length === 0) {
             return res.status(404).json({ message: "You are not registered for this opportunity." });
+        }
+
+        if (rows[0].Attendance_ID) {
+            return res.status(400).json({ message: "Attendance has already been recorded, so you can no longer unregister." });
+        }
+
+        if (hasStarted(rows[0].Date, rows[0].Start_Time)) {
+            return res.status(400).json({ message: "This opportunity has already started, so you can no longer unregister." });
         }
 
         // Unregister
@@ -400,14 +466,23 @@ exports.unregisterFromOpportunity = async (req, res) => {
     }
 };
 
+// -----------------------------------------------------------------------------
+// GET /api/opportunity/:id/registrations  -  faculty: registered students
+// Also returns the attendance window, so the page can say whether attendance
+// can be submitted/corrected right now and until when.
+// -----------------------------------------------------------------------------
 exports.getRegistrations = async (req, res) => {
     try {
-        const opportunityId = req.params.id;
+        const opportunityId = parseId(req.params.id);
         const facultyId = req.user.userId;
+        if (!opportunityId) {
+            return res.status(400).json({ message: "Invalid opportunity." });
+        }
 
         // Ensure faculty owns the opportunity
         const { rows: opp } = await db.query(
-            'SELECT * FROM opportunity WHERE "Opportunity_ID" = $1 AND "Faculty_ID" = $2',
+            `SELECT "Approval_Status", "Date", "Start_Time", "Duration"
+             FROM opportunity WHERE "Opportunity_ID" = $1 AND "Faculty_ID" = $2`,
             [opportunityId, facultyId]
         );
 
@@ -431,13 +506,16 @@ exports.getRegistrations = async (req, res) => {
             LEFT JOIN attendance a
                 ON a."Student_ID" = r."Student_ID"
             AND a."Opportunity_ID" = r."Opportunity_ID"
-            WHERE r."Opportunity_ID" = $1`,
+            WHERE r."Opportunity_ID" = $1
+            ORDER BY u."Last_Name", u."First_Name"`,
             [opportunityId]
         );
 
         return res.status(200).json({
             message: "Registered students retrieved.",
-            students: registrations
+            students: registrations,
+            maxHours: Number(opp[0].Duration),
+            attendanceWindow: attendanceWindow(opp[0].Date, opp[0].Start_Time),
         });
 
     } catch (error) {
@@ -446,16 +524,40 @@ exports.getRegistrations = async (req, res) => {
     }
 };
 
+// -----------------------------------------------------------------------------
+// POST /api/opportunity/:id/attendance  -  faculty submits or corrects attendance
+// Body: { attendance: [{ studentId, attended, hoursEarned }, ...] }
+//
+// INPUT VALIDATION: every entry is checked before anything is saved - each
+//   student must be registered for THIS opportunity (listed once), attended
+//   must be true/false, and hours must be 0.5-step values from 0.5 up to the
+//   opportunity's duration (absent = 0 hours).
+// RULES: approved opportunities only; from the event's start time until 14
+//   days after its date (corrections allowed in that window).
+// DATABASE INTERACTION: one transaction - every row is saved or none is.
+//   Each student's Service_Hours_Total is RECALCULATED from their attendance
+//   records (not added to), so submitting again or correcting can never
+//   double-count hours.
+// -----------------------------------------------------------------------------
 exports.submitAttendance = async (req, res) => {
+    const opportunityId = parseId(req.params.id);
+    const facultyId = req.user.userId;
+    const { attendance } = req.body;
+
+    let client;
     try {
-        const opportunityId = req.params.id;
-        const facultyId = req.user.userId;
-        const { attendance } = req.body;
-        // [{ studentId, attended, hoursEarned }]
+        if (!opportunityId) {
+            return res.status(400).json({ message: "Invalid opportunity." });
+        }
+
+        if (!Array.isArray(attendance) || attendance.length === 0) {
+            return res.status(400).json({ message: "Attendance must list at least one student." });
+        }
 
         // Verify faculty owns opportunity
         const { rows: opp } = await db.query(
-            'SELECT * FROM opportunity WHERE "Opportunity_ID" = $1 AND "Faculty_ID" = $2',
+            `SELECT "Approval_Status", "Date", "Start_Time", "Duration"
+             FROM opportunity WHERE "Opportunity_ID" = $1 AND "Faculty_ID" = $2`,
             [opportunityId, facultyId]
         );
 
@@ -465,36 +567,91 @@ exports.submitAttendance = async (req, res) => {
             });
         }
 
-        for (const entry of attendance) {
-            const { studentId, attended, hoursEarned } = entry;
+        if (opp[0].Approval_Status !== "Approved") {
+            return res.status(400).json({ message: "Attendance can only be recorded for approved opportunities." });
+        }
 
-            // Insert/update attendance table
-            await db.query(
+        const window = attendanceWindow(opp[0].Date, opp[0].Start_Time);
+        if (!window.open) {
+            return res.status(400).json({ message: window.reason });
+        }
+
+        // Students registered for this opportunity
+        const { rows: regs } = await db.query(
+            'SELECT "Student_ID" FROM registration WHERE "Opportunity_ID" = $1',
+            [opportunityId]
+        );
+        const registered = new Set(regs.map((r) => r.Student_ID));
+        const maxHours = Number(opp[0].Duration);
+
+        // Validate every entry before saving anything
+        const seen = new Set();
+        const entries = [];
+        for (const entry of attendance) {
+            const studentId = Number(entry?.studentId);
+            const attended = entry?.attended;
+            const hours = Number(entry?.hoursEarned);
+
+            if (!registered.has(studentId)) {
+                return res.status(400).json({ message: "Attendance can only be recorded for students registered for this opportunity." });
+            }
+            if (seen.has(studentId)) {
+                return res.status(400).json({ message: "Each student can only be listed once." });
+            }
+            seen.add(studentId);
+
+            if (typeof attended !== "boolean") {
+                return res.status(400).json({ message: "Each student must be marked as attended or absent." });
+            }
+
+            if (attended && (!Number.isFinite(hours) || hours < 0.5 || hours > maxHours || !Number.isInteger(hours * 2))) {
+                return res.status(400).json({
+                    message: `Hours earned must be between 0.5 and ${maxHours}, in half-hour steps.`
+                });
+            }
+
+            entries.push({ studentId, attended, hours: attended ? hours : 0 });
+        }
+
+        // Save everything in ONE transaction
+        client = await db.connect();
+        await client.query("BEGIN");
+
+        for (const { studentId, attended, hours } of entries) {
+            await client.query(
                 `INSERT INTO attendance ("Student_ID", "Opportunity_ID", "Attended", "Hours_Earned")
                  VALUES ($1, $2, $3, $4)
                  ON CONFLICT ("Student_ID", "Opportunity_ID")
                  DO UPDATE SET "Attended" = EXCLUDED."Attended", "Hours_Earned" = EXCLUDED."Hours_Earned"`,
-                [studentId, opportunityId, !!attended, hoursEarned || 0]
+                [studentId, opportunityId, attended, hours]
             );
-
-            // If attended, update student's total hours
-            if (attended) {
-                await db.query(
-                    `UPDATE student
-                     SET "Service_Hours_Total" = "Service_Hours_Total" + $1
-                     WHERE "User_ID" = $2`,
-                    [hoursEarned || 0, studentId]
-                );
-            }
         }
 
+        // Recalculate each affected student's total from ALL their attendance
+        // records - never "+= hours" - so re-submitting cannot double-count.
+        await client.query(
+            `UPDATE student s
+             SET "Service_Hours_Total" = COALESCE((
+                 SELECT SUM(a."Hours_Earned") FROM attendance a
+                 WHERE a."Student_ID" = s."User_ID" AND a."Attended"
+             ), 0)
+             WHERE s."User_ID" = ANY($1::int[])`,
+            [entries.map((e) => e.studentId)]
+        );
+
+        await client.query("COMMIT");
+
         return res.status(200).json({
-            message: "Attendance submitted successfully."
+            message: "Attendance saved successfully.",
+            attendanceWindow: window,
         });
 
     } catch (error) {
+        if (client) await client.query("ROLLBACK").catch(() => {});
         console.error("Submit Attendance Error:", error);
-        return res.status(500).json({ message: "Server error while submitting attendance." });
+        return res.status(500).json({ message: "Server error while saving attendance. Nothing was saved." });
+    } finally {
+        if (client) client.release();
     }
 };
 

@@ -6,13 +6,17 @@ exports.postMessage = async (req, res) => {
         const opportunityId = req.params.opportunityId;
         const { message } = req.body;
 
-        if (!message) {
+        if (typeof message !== "string" || !message.trim()) {
             return res.status(400).json({ message: "Message content is required." });
+        }
+
+        if (!/^\d+$/.test(String(opportunityId))) {
+            return res.status(400).json({ message: "Invalid opportunity." });
         }
 
         // Ensure the faculty owns this opportunity
         const { rows: opp } = await db.query(
-            'SELECT * FROM opportunity WHERE "Opportunity_ID" = $1 AND "Faculty_ID" = $2',
+            'SELECT "Approval_Status" FROM opportunity WHERE "Opportunity_ID" = $1 AND "Faculty_ID" = $2',
             [opportunityId, facultyId]
         );
 
@@ -22,11 +26,18 @@ exports.postMessage = async (req, res) => {
             });
         }
 
+        // Announcements only go out for approved opportunities
+        if (opp[0].Approval_Status !== "Approved") {
+            return res.status(400).json({
+                message: "You can post announcements once this opportunity is approved."
+            });
+        }
+
         // Insert message
         await db.query(
             `INSERT INTO communication ("Opportunity_ID", "Faculty_ID", "Message_Content")
              VALUES ($1, $2, $3)`,
-            [opportunityId, facultyId, message]
+            [opportunityId, facultyId, message.trim()]
         );
 
         return res.status(201).json({
@@ -43,6 +54,10 @@ exports.getMessages = async (req, res) => {
     try {
         const userId = req.user.userId;
         const opportunityId = req.params.opportunityId;
+
+        if (!/^d+$/.test(String(opportunityId))) {
+            return res.status(400).json({ message: "Invalid opportunity." });
+        }
 
         // 1. Is this user the faculty who created the opportunity?
         const { rows: ownerCheck } = await db.query(

@@ -29,6 +29,12 @@ export function saveSession({ token, role, userId, firstName }) {
   if (firstName) localStorage.setItem("firstName", firstName);
 }
 
+// Update the saved role/name after the backend reports a change (GET /api/auth/me)
+export function updateSessionRole(role, firstName) {
+  if (role) localStorage.setItem("role", role);
+  if (firstName) localStorage.setItem("firstName", firstName);
+}
+
 export function getSession() {
   return {
     token: localStorage.getItem("token"),

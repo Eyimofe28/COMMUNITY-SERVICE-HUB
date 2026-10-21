@@ -10,6 +10,7 @@ import {
   Tabs,
   Tab,
     IconButton,
+  Alert,
 } from "@mui/material";
 
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
@@ -25,7 +26,8 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
 import TextField from "@mui/material/TextField";
 import { logout } from "../../utils/auth";
-import { formatDate, formatTimeRange } from "../../utils/dates";
+import { formatDate, formatTimeRange, hasStarted } from "../../utils/dates";
+import { getErrorMessage } from "../../api/axios";
 
 export default function ApproverDashboard() {
   const firstName = localStorage.getItem("firstName") || "Approver";
@@ -38,6 +40,8 @@ export default function ApproverDashboard() {
   const [pending, setPending] = useState([]);
   const [approved, setApproved] = useState([]);
   const [tab, setTab] = useState(0);
+  // Result of the last approve/reject, shown above the tabs
+  const [status, setStatus] = useState(null);
 
   // Get Pending opportunities
   const loadPending = async () => {
@@ -91,7 +95,10 @@ export default function ApproverDashboard() {
         `/opportunity/approve/${selectedOpp.Opportunity_ID}`,
         { status: "Rejected", rejectionReason }
         );
-
+        setStatus({ type: "success", text: `"${selectedOpp.Title}" was rejected.` });
+    } catch (err) {
+        setStatus({ type: "error", text: getErrorMessage(err, "Failed to reject the opportunity.") });
+    } finally {
         setRejectModalOpen(false);
         setRejectionReason("");
         setSelectedOpp(null);
@@ -99,23 +106,22 @@ export default function ApproverDashboard() {
         loadPending();
         loadApproved();
         loadRejected();
-
-    } catch (err) {
-        console.error("Reject Error:", err);
     }
     };
 
 
-  const approve = async (id) => {
+  const approve = async (opp) => {
     try {
       await api.patch(
-        `/opportunity/approve/${id}`,
+        `/opportunity/approve/${opp.Opportunity_ID}`,
         { status: "Approved" }
       );
+      setStatus({ type: "success", text: `"${opp.Title}" was approved.` });
+    } catch (err) {
+      setStatus({ type: "error", text: getErrorMessage(err, "Failed to approve the opportunity.") });
+    } finally {
       loadPending();
       loadApproved();
-    } catch (err) {
-      console.error("Approve Error:", err);
     }
   };
 
@@ -174,6 +180,13 @@ export default function ApproverDashboard() {
           />
         </Paper>
 
+        {/* Result of the last approve / reject */}
+        {status && (
+          <Alert severity={status.type} sx={{ mt: 3, flexShrink: 0 }} onClose={() => setStatus(null)}>
+            {status.text}
+          </Alert>
+        )}
+
         {/* NAV TABS */}
         <Tabs
           value={tab}
@@ -187,7 +200,7 @@ export default function ApproverDashboard() {
         >
           <Tab label="Pending Opportunities" sx={{ fontWeight: 600 }} />
           <Tab label="Approved BY YOU" sx={{ fontWeight: 600 }} />
-          <Tab label="Rejected BY YOU" sx={{ fontWeight: 600 }} />   // NEW TAB
+          <Tab label="Rejected BY YOU" sx={{ fontWeight: 600 }} />
         </Tabs>
 
         <Divider sx={{ mb: 3, flexShrink: 0 }} />
@@ -243,7 +256,11 @@ export default function ApproverDashboard() {
                         </Box>
                       </Box>
 
-                      <Chip label="Pending" sx={{ bgcolor: "#FEF9C3" }} />
+                      {hasStarted(o.Date, o.Start_Time) ? (
+                        <Chip label="Start time passed" sx={{ bgcolor: "#FEE2E2", color: "#B91C1C" }} />
+                      ) : (
+                        <Chip label="Pending" sx={{ bgcolor: "#FEF9C3" }} />
+                      )}
                     </Box>
 
                     <Divider sx={{ my: 2 }} />
@@ -257,7 +274,9 @@ export default function ApproverDashboard() {
                           bgcolor: "#166534",
                           "&:hover": { bgcolor: "#14532D" },
                         }}
-                        onClick={() => approve(o.Opportunity_ID)}
+                        // An event that has already started can no longer be approved (backend rule too)
+                        disabled={hasStarted(o.Date, o.Start_Time)}
+                        onClick={() => approve(o)}
                       >
                         Approve
                       </Button>
@@ -274,6 +293,12 @@ export default function ApproverDashboard() {
                     </Button>
 
                     </Box>
+
+                    {hasStarted(o.Date, o.Start_Time) && (
+                      <Typography variant="body2" sx={{ color: "#B91C1C", mt: 1.5 }}>
+                        This opportunity's start time has passed, so it can only be rejected.
+                      </Typography>
+                    )}
                   </Paper>
                 ))
               )}
@@ -427,6 +452,7 @@ export default function ApproverDashboard() {
             <Button
               variant="contained"
               color="error"
+              disabled={!rejectionReason.trim()}
               onClick={reject}
             >
               Submit Rejection
