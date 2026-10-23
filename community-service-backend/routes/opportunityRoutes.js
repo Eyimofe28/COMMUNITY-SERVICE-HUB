@@ -1,3 +1,17 @@
+// =============================================================================
+// Opportunity routes - mounted at /api/opportunity in server.js
+// -----------------------------------------------------------------------------
+// Every route runs, in order:
+//   auth         -> checks the login token and loads the user + CURRENT role
+//                   from the database (middleware/authMiddleware.js)
+//   role check   -> isStudent / isFaculty / isApprover / isRegularFaculty
+//                   (middleware/roleMiddleware.js); anyone else gets 403
+//   controller   -> the handler in controllers/opportunityController.js
+//
+// Routes with an :id always end in a fixed word (e.g. /:id/registrations), so
+// they never clash with one-word routes such as /pending or /my-submissions.
+// =============================================================================
+
 const express = require("express");
 const router = express.Router();
 
@@ -6,7 +20,8 @@ const { isFaculty, isApprover, isRegularFaculty, isStudent } = require("../middl
 
 const opportunityController = require("../controllers/opportunityController");
 
-// Faculty creates an opportunity
+// Faculty creates an opportunity (saved as "Pending" until an approver decides).
+// isRegularFaculty: faculty only, and NOT approvers (approvers review, they don't create).
 router.post("/create", auth, isRegularFaculty, opportunityController.createOpportunity);
 
 // Approver approves an opportunity

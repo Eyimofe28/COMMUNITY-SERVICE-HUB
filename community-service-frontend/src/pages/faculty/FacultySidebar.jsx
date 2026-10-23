@@ -1,15 +1,22 @@
-// src/components/FacultySidebar.jsx
+// =============================================================================
+// Faculty sidebar - the vertical navigation shown on every faculty page
+// -----------------------------------------------------------------------------
+// Usage: <FacultySidebar active="create" />  (active = key of the current page,
+// which gets a highlighted background)
+// =============================================================================
+
 import { Box, IconButton, Stack } from "@mui/material";
 
 import HomeRoundedIcon from "@mui/icons-material/HomeRounded";
 import DriveFileRenameOutlineRoundedIcon from "@mui/icons-material/DriveFileRenameOutlineRounded";
 import MailOutlineRoundedIcon from "@mui/icons-material/MailOutlineRounded";
-import ChecklistRoundedIcon from "@mui/icons-material/ChecklistRounded";   // ✅ NEW
+import ChecklistRoundedIcon from "@mui/icons-material/ChecklistRounded";
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import { logout } from "../../utils/auth";
 
 export default function FacultySidebar({ active }) {
 
+  // One entry per faculty page: icon, address (route) and key (matched against "active")
   const navItems = [
     { icon: <HomeRoundedIcon />, route: "/faculty/dashboard", key: "dashboard" },
     {
@@ -22,7 +29,7 @@ export default function FacultySidebar({ active }) {
       route: "/faculty/messages",
       key: "messages",
     },
-    // ✅ Replaced settings with attendance/checklist
+    // Attendance page (mark attended / absent and hours)
     {
       icon: <ChecklistRoundedIcon />,
       route: "/faculty/attendance",
