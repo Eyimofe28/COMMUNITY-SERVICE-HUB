@@ -1,4 +1,14 @@
-// src/pages/faculty/FacultyDashboard.jsx
+// =============================================================================
+// Faculty dashboard - the faculty member's own submitted opportunities
+// -----------------------------------------------------------------------------
+// Route: /faculty/dashboard (faculty role only). Newly created opportunities
+// land here under "Pending" (see FacultyCreateOpportunity.jsx).
+//
+// Loads GET /api/opportunity/my-submissions once, splits the results into
+// Pending / Approved / Rejected tabs, and shows ITEMS_PER_PAGE cards per page.
+// Clicking a card expands its description, location and any rejection reason.
+// =============================================================================
+
 import { useEffect, useState } from "react";
 import api from "../../api/axios";
 
@@ -30,6 +40,8 @@ import greetingsImg from "./greetings.png";
 import { formatDate, formatTimeRange, formatHours } from "../../utils/dates";
 
 // ---------- ICON PICKER ----------
+// Picks an icon from keywords in the title (e.g. "clean" -> cleaning icon);
+// falls back to a school icon. Opportunities have no category column yet.
 function getIconForCategory(category) {
   const normalized = (category || "").toLowerCase();
 
@@ -49,24 +61,32 @@ function getIconForCategory(category) {
 //                   MAIN COMPONENT
 // =========================================================
 export default function FacultyDashboard() {
+  // Saved at login (utils/auth.js); the token is only used to decide whether to load
   const token = localStorage.getItem("token");
   const firstName = localStorage.getItem("firstName") || "Faculty";
 
+  // All submissions, plus the same list split by Approval_Status (one array per tab)
   const [submissions, setSubmissions] = useState([]);
   const [pending, setPending] = useState([]);
   const [approved, setApproved] = useState([]);
   const [rejected, setRejected] = useState([]);
 
   const [loading, setLoading] = useState(true);
+  // Selected tab: 0 = Pending, 1 = Approved, 2 = Rejected
   const [tab, setTab] = useState(0);
+  // Opportunity_ID of the card that is expanded (null = none)
   const [expandedId, setExpandedId] = useState(null);
+  // Current page number (starting at 0) kept separately for each tab
   const [pendingPage, setPendingPage] = useState(0);
   const [approvedPage, setApprovedPage] = useState(0);
   const [rejectedPage, setRejectedPage] = useState(0);
 
+  // Cards shown per page in each tab
   const ITEMS_PER_PAGE = 2;
 
   // ---------------- LOAD SUBMISSIONS ----------------
+  // Runs once when the page opens: fetches this faculty member's opportunities
+  // (newest first) and sorts them into the three tabs.
   useEffect(() => {
     const fetchSubmissions = async () => {
       setLoading(true);
@@ -93,6 +113,7 @@ export default function FacultyDashboard() {
     if (token) fetchSubmissions();
   }, [token]);
 
+  // Switching tabs collapses any expanded card
   const handleTabChange = (e, v) => {
     setTab(v);
     setExpandedId(null);
@@ -119,13 +140,14 @@ export default function FacultyDashboard() {
     return rejected;
   };
 
-  // Paginate data
+  // Paginate data: the slice of the current tab's list for the current page
   const currentData = getCurrentData();
   const currentPage = getCurrentPage();
   const startIdx = currentPage * ITEMS_PER_PAGE;
   const paginatedData = currentData.slice(startIdx, startIdx + ITEMS_PER_PAGE);
   const totalPages = Math.ceil(currentData.length / ITEMS_PER_PAGE);
 
+  // Next / Previous page buttons (stop at the first and last page)
   const handleNextPage = () => {
     if (currentPage < totalPages - 1) {
       setCurrentPage(currentPage + 1);
@@ -139,6 +161,7 @@ export default function FacultyDashboard() {
   };
 
   // ---------- STATUS CHIP COLORS ----------
+  // Props for the status badge: green = Approved, red = Rejected, yellow = Pending
   const getStatusChipProps = (status) => {
     const base = {
       label: status,
@@ -156,6 +179,8 @@ export default function FacultyDashboard() {
   };
 
   // ---------- REUSABLE OPPORTUNITY CARD ----------
+  // Renders one opportunity; clicking it toggles the expanded details.
+  // Date and time are formatted for display ("Wed, Oct 21, 2026", "9:00 AM – 11:30 AM").
   const OpportunityCard = (opp) => {
     const id = opp.Opportunity_ID;
     const expanded = expandedId === id;
@@ -241,7 +266,7 @@ export default function FacultyDashboard() {
                 </Typography>
               )}
 
-              {/* ⭐ SHOW REJECTION REASON IN REJECTED TAB */}
+              {/* Rejection reason (only on rejected opportunities) */}
               {opp.Approval_Status === "Rejected" && opp.Rejection_Reason && (
                 <Typography variant="body2" sx={{ color: "#B91C1C", mt: 1 }}>
                   <strong>Rejection Reason:</strong> {opp.Rejection_Reason}

@@ -1,3 +1,13 @@
+// =============================================================================
+// Opportunity controller - creating, approving, registering for and recording
+// attendance on community service opportunities
+// -----------------------------------------------------------------------------
+// Routes: routes/opportunityRoutes.js (each runs auth + a role check first, so
+// req.user = { userId, role, info } is always set here).
+// Dates are "YYYY-MM-DD" text and times "HH:MM[:SS]"; all date/time rules are
+// in utils/dates.js and use the campus time zone.
+// =============================================================================
+
 const db = require("../config/db");
 const {
     nowOnCampus,
@@ -7,8 +17,18 @@ const {
     validateOpportunitySchedule,
 } = require("../utils/dates");
 
-// Create Opportunity (Faculty Only)
+// -----------------------------------------------------------------------------
+// POST /api/opportunity/create  -  faculty creates an opportunity
+// Body: { title, description?, location?, date, startTime, endTime }
+// Result: 201 { opportunityId } - saved as "Pending" with no approver yet.
+//
+// Steps: 1. required fields  2. date/time rules  3. look up the faculty name
+//        4. insert (duration is calculated here, never taken from the request)
+// Note: the frontend also requires Location; adding the same backend check and
+// title/description length checks is planned (faculty batch, F1).
+// -----------------------------------------------------------------------------
 exports.createOpportunity = async (req, res) => {
+  // Values sent by the Create Opportunity form
   const {
     title,
     description,
@@ -19,7 +39,7 @@ exports.createOpportunity = async (req, res) => {
   } = req.body;
 
   try {
-    // Validate required fields
+    // 1. Required fields
     if (!title || !date || !startTime || !endTime) {
       return res.status(400).json({
         message:
@@ -27,17 +47,20 @@ exports.createOpportunity = async (req, res) => {
       });
     }
 
-    // Date must be tomorrow .. 1 year ahead (campus time); times in 30-minute
-    // steps between 6 AM and 10 PM, lasting 30 min - 12 hrs (see utils/dates.js)
+    // 2. Date must be tomorrow .. 1 year ahead (campus time); times in 30-minute
+    //    steps between 6 AM and 10 PM, lasting 30 min - 12 hrs (see utils/dates.js).
+    //    scheduleError is a message for the user, or null when everything is valid.
     const scheduleError = validateOpportunitySchedule({ date, startTime, endTime });
     if (scheduleError) {
       return res.status(400).json({ message: scheduleError });
     }
 
-    // This is the userId from your JWT (faculty is a subtype of users)
+    // The logged-in faculty member (set by authMiddleware). A faculty member's
+    // User_ID is also their faculty ID, so it is stored as Faculty_ID.
     const facultyUserId = req.user.userId;
 
-    // 🔎 Fetch faculty name from users table
+    // 3. Look up their full name - stored as Person_In_Charge so students and
+    //    approvers see who runs the event without another lookup
     const { rows: facultyRows } = await db.query(
       'SELECT "First_Name", "Last_Name" FROM users WHERE "User_ID" = $1',
       [facultyUserId]
@@ -48,7 +71,8 @@ exports.createOpportunity = async (req, res) => {
       ? `${facultyRow.First_Name || ""} ${facultyRow.Last_Name || ""}`.trim()
       : "Unknown";
 
-    // Insert into opportunity
+    // 4. Save it. Status starts as "Pending" with no Approver_ID; RETURNING
+    //    gives back the new row's ID for the response.
     const { rows: inserted } = await db.query(
       `INSERT INTO opportunity (
           "Faculty_ID",
@@ -73,7 +97,7 @@ exports.createOpportunity = async (req, res) => {
         endTime,
         durationHours(startTime, endTime), // Duration is calculated, never taken from the user
         location || null,
-        facultyName,            // ✅ actual full name from users table
+        facultyName,            // Person_In_Charge: full name from the users table
       ]
     );
 
@@ -83,6 +107,8 @@ exports.createOpportunity = async (req, res) => {
       opportunityId: inserted[0].Opportunity_ID,
     });
   } catch (error) {
+    // Unexpected problem (e.g. database unreachable): logged on the server,
+    // generic message to the user
     console.error("Create Opportunity Error:", error);
     return res
       .status(500)

@@ -1,4 +1,23 @@
-// src/pages/FacultyCreateOpportunity.jsx
+// =============================================================================
+// Create Opportunity page (faculty)
+// -----------------------------------------------------------------------------
+// Route: /faculty/create (App.js - faculty role only, via ProtectedRoute)
+//
+// Flow:
+//   1. The faculty member fills in Title, Location, Date, Start/End Time and an
+//      optional Description. Duration is calculated from the times, not typed.
+//   2. handleSubmit checks the form (required fields, date window, end time).
+//   3. The form is sent to POST /api/opportunity/create, where the backend
+//      checks every rule again (controllers/opportunityController.js).
+//   4. On success the user goes to the faculty dashboard, where the new
+//      opportunity appears under "Pending" until an approver decides.
+//
+// Rules (shared with the backend through utils/dates.js):
+//   - Date: tomorrow up to MAX_DAYS_AHEAD (365) days ahead, campus time
+//   - Times: 30-minute steps between 6:00 AM and 10:00 PM
+//   - Length: 30 minutes to 12 hours
+// =============================================================================
+
 import { useState } from "react";
 import api from "../../api/axios";
 import {
@@ -31,6 +50,8 @@ import {
 } from "../../utils/dates";
 
 export default function FacultyCreateOpportunity() {
+  // Form values. Keys match the database column names. Dates are "YYYY-MM-DD"
+  // and times are "HH:MM" (24-hour), exactly as the API expects them.
   const [form, setForm] = useState({
     Title: "",
     Description: "",
@@ -40,10 +61,14 @@ export default function FacultyCreateOpportunity() {
     End_Time: "",
   });
 
+  // true while the request is being sent (disables the Create button)
   const [loading, setLoading] = useState(false);
+  // Text shown in the error popup, and whether the popup is open
   const [errorMessage, setErrorMessage] = useState("");
   const [openModal, setOpenModal] = useState(false);
 
+  // Updates one form field (the input's "name" attribute says which one).
+  // Uses the previous state so quick successive changes are never lost.
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => {
@@ -66,6 +91,8 @@ export default function FacultyCreateOpportunity() {
   const startTimeChoices = TIME_OPTIONS.filter(
     (t) => toMinutes(t) <= toMinutes(LATEST_END) - MIN_LENGTH_MINUTES
   );
+  // End Time choices for a given start: every allowed time that makes the
+  // event 30 minutes to 12 hours long (and never later than 10:00 PM)
   function endTimeChoices(start) {
     if (!start) return [];
     return TIME_OPTIONS.filter((t) => {
@@ -78,21 +105,26 @@ export default function FacultyCreateOpportunity() {
   const durationMinutes =
     form.Start_Time && form.End_Time ? toMinutes(form.End_Time) - toMinutes(form.Start_Time) : null;
 
+  // Opens the error popup with a message
   const showError = (msg) => {
     setErrorMessage(msg);
     setOpenModal(true);
   };
 
+  // Validates the form, sends it to the backend, then goes to the dashboard.
+  // Any problem (from these checks or from the server) is shown in the popup.
   const handleSubmit = async () => {
+    // 1. Required fields (Description is optional)
     const requiredFields = ["Title", "Location", "Date", "Start_Time", "End_Time"];
 
+    // Names of the required fields that are still empty
     const missing = requiredFields.filter((f) => !form[f]);
 
     if (missing.length > 0) {
       return showError(`Opportunity cannot be created because the following fields are missing: ${missing.join(", ")}`);
     }
 
-    // Only future dates (tomorrow or later), at most 1 year ahead.
+    // 2. Only future dates (tomorrow or later), at most 1 year ahead.
     // "YYYY-MM-DD" strings compare correctly as plain text - no Date objects,
     // so there is no time-zone shift.
     if (form.Date < earliestDate) {
@@ -103,7 +135,7 @@ export default function FacultyCreateOpportunity() {
       return showError(`Opportunities can be scheduled at most ${MAX_DAYS_AHEAD} days ahead.`);
     }
 
-    // The dropdowns only offer valid times, so this is a safety net
+    // 3. The dropdowns only offer valid times, so this is a safety net
     if (!endTimeChoices(form.Start_Time).includes(form.End_Time)) {
       return showError("Please choose an End Time 30 minutes to 12 hours after the Start Time.");
     }
@@ -121,11 +153,14 @@ export default function FacultyCreateOpportunity() {
         endTime: form.End_Time,
       };
 
+      // 4. Send it. The shared api client adds the login token. The backend
+      //    re-checks every rule and saves the opportunity as "Pending".
       await api.post("/opportunity/create", payload);
 
-
+      // 5. Success - the new opportunity is listed under "Pending" on the dashboard
       window.location.href = `${process.env.PUBLIC_URL}/faculty/dashboard`;
     } catch (err) {
+      // The backend's message explains what was wrong (e.g. a rule it rejected)
       showError(err.response?.data?.message || "Failed to create opportunity.");
     } finally {
       setLoading(false);
@@ -152,6 +187,7 @@ export default function FacultyCreateOpportunity() {
             Create New Opportunity
           </Typography>
 
+          {/* Search button - decorative for now, not connected yet (task L1) */}
           <IconButton sx={{ bgcolor: "#F3F4F6", width: 44, height: 44 }}>
             <SearchRoundedIcon />
           </IconButton>
@@ -296,7 +332,7 @@ export default function FacultyCreateOpportunity() {
         </Grid>
       </Box>
 
-      {/* ❗ ERROR MODAL ❗ */}
+      {/* ERROR POPUP - shows messages from handleSubmit / the server */}
       <Modal open={openModal} onClose={() => setOpenModal(false)}>
         <Box
           sx={{
