@@ -51,6 +51,10 @@ router.patch("/opportunity/:id/assign-faculty", auth, isAdmin, adminController.a
 router.get("/settings/approval", auth, isAdmin, accountApproval.getApprovalSettings);
 router.put("/settings/approval", auth, isAdmin, accountApproval.updateApprovalSettings);
 
+// Office contact shown in the approval messages
+router.get("/settings/office-contact", auth, isAdmin, accountApproval.getOfficeContact);
+router.put("/settings/office-contact", auth, isAdmin, accountApproval.updateOfficeContact);
+
 // Pending / declined accounts and decisions
 router.get("/accounts", auth, isAdmin, accountApproval.listAccounts);
 router.post("/accounts/approve-all", auth, isAdmin, accountApproval.approveAllPending);

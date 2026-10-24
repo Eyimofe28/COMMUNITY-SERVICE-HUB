@@ -4,7 +4,7 @@
 // Every route runs, in order:
 //   auth         -> checks the login token and loads the user + CURRENT role
 //                   from the database (middleware/authMiddleware.js)
-//   role check   -> isStudent / isFaculty / isApprover / isRegularFaculty
+//   role check   -> isStudent / isFacultyOrApprover / isApprover / isRegularFaculty
 //                   (middleware/roleMiddleware.js); anyone else gets 403
 //   controller   -> the handler in controllers/opportunityController.js
 //
@@ -16,7 +16,7 @@ const express = require("express");
 const router = express.Router();
 
 const auth = require("../middleware/authMiddleware");
-const { isFaculty, isApprover, isRegularFaculty, isStudent } = require("../middleware/roleMiddleware");
+const { isFacultyOrApprover, isApprover, isRegularFaculty, isStudent } = require("../middleware/roleMiddleware");
 
 const opportunityController = require("../controllers/opportunityController");
 
@@ -40,7 +40,7 @@ router.get("/rejected-by-me", auth, isApprover, opportunityController.listReject
 router.get("/pending", auth, isApprover, opportunityController.listPending);
 
 // Faculty views their submitted opportunities
-router.get("/my-submissions", auth, isFaculty, opportunityController.listMySubmissions);
+router.get("/my-submissions", auth, isFacultyOrApprover, opportunityController.listMySubmissions);
 
 // Student registers for an opportunity
 router.post("/register/:id", auth, isStudent, opportunityController.registerForOpportunity);
@@ -49,10 +49,10 @@ router.post("/register/:id", auth, isStudent, opportunityController.registerForO
 router.delete("/unregister/:id", auth, isStudent, opportunityController.unregisterFromOpportunity);
 
 // Faculty retrieves all registered students for an opportunity
-router.get("/:id/registrations", auth, isFaculty, opportunityController.getRegistrations);
+router.get("/:id/registrations", auth, isFacultyOrApprover, opportunityController.getRegistrations);
 
 // Faculty submits attendance
-router.post("/:id/attendance", auth, isFaculty, opportunityController.submitAttendance);
+router.post("/:id/attendance", auth, isFacultyOrApprover, opportunityController.submitAttendance);
 
 // Student views their registrations
 router.get("/my-registrations", auth, isStudent, opportunityController.listMyRegistrations);
