@@ -1,4 +1,16 @@
-// src/pages/admin/AdminDashboard.jsx
+// =============================================================================
+// Admin Dashboard - /admin/dashboard (admins only)
+// -----------------------------------------------------------------------------
+// Three tabs:
+//   Accounts       - account approval switches + pending/declined accounts
+//                    (AccountApprovalCard) and the Users list with the
+//                    Approver switch (UsersCard)
+//   Opportunities  - every opportunity; approve/reject pending ones
+//                    (OpportunitiesOverviewCard)
+//   Admins & Settings - office contact (OfficeContactCard), current admins,
+//                    add admin, handoff steps and change password (this file)
+// =============================================================================
+
 import { useEffect, useState } from "react";
 import {
   Box,
@@ -16,6 +28,8 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
+  Tabs,
+  Tab,
 } from "@mui/material";
 
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
@@ -27,12 +41,18 @@ import { isPasswordValid } from "../../utils/passwordRules";
 import { validateName, validateEmail } from "../../utils/validation";
 import { logout } from "../../utils/auth";
 import AccountApprovalCard from "../../components/AccountApprovalCard";
+import UsersCard from "../../components/UsersCard";
+import OpportunitiesOverviewCard from "../../components/OpportunitiesOverviewCard";
+import OfficeContactCard from "../../components/OfficeContactCard";
 
 const emptyAdminForm = { firstName: "", lastName: "", email: "", password: "" };
 const emptyPasswordForm = { currentPassword: "", newPassword: "", confirmPassword: "" };
 
 export default function AdminDashboard() {
   const currentUserId = Number(localStorage.getItem("userId"));
+
+  // Selected section tab: 0 = Accounts, 1 = Opportunities, 2 = Admins & Settings
+  const [section, setSection] = useState(0);
 
   const [admins, setAdmins] = useState([]);
   const [loadingAdmins, setLoadingAdmins] = useState(true);
@@ -179,8 +199,28 @@ export default function AdminDashboard() {
         </Box>
       </Paper>
 
-      {/* ACCOUNT APPROVAL (P5a): approval switches + pending/declined accounts */}
-      <AccountApprovalCard />
+      {/* SECTION TABS */}
+      <Tabs value={section} onChange={(e, v) => setSection(v)} sx={{ mb: 3 }}>
+        <Tab label="Accounts" sx={{ fontWeight: 600 }} />
+        <Tab label="Opportunities" sx={{ fontWeight: 600 }} />
+        <Tab label="Admins & Settings" sx={{ fontWeight: 600 }} />
+      </Tabs>
+
+      {/* ACCOUNTS: approval switches + pending/declined (P5a), users + Approver switch (P5b) */}
+      {section === 0 && (
+        <>
+          <AccountApprovalCard />
+          <UsersCard />
+        </>
+      )}
+
+      {/* OPPORTUNITIES: overview + admin approve/reject (P5b, M2) */}
+      {section === 1 && <OpportunitiesOverviewCard />}
+
+      {/* ADMINS & SETTINGS: office contact + admin management (below) */}
+      {section === 2 && (
+      <>
+      <OfficeContactCard />
 
       <Box sx={{ display: "flex", gap: 3, flexWrap: "wrap", alignItems: "flex-start" }}>
         {/* LEFT COLUMN: admin list + handoff steps */}
@@ -369,6 +409,8 @@ export default function AdminDashboard() {
           </Paper>
         </Stack>
       </Box>
+      </>
+      )}
 
       {/* REMOVE CONFIRMATION */}
       <Dialog open={!!removeTarget} onClose={() => setRemoveTarget(null)}>

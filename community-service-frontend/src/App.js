@@ -44,11 +44,13 @@ function App() {
           <Route path="/student/completed" element={only(["student"], <CompletedOpportunities />)} />
           <Route path="/student/messages" element={only(["student"], <StudentMessages />)} />
 
-          {/* Faculty pages */}
-          <Route path="/faculty/dashboard" element={only(["faculty"], <FacultyDashboard />)} />
+          {/* Faculty pages. Approvers can open their own opportunities, messages and
+              attendance too (they keep managing what they created before being
+              promoted), but only faculty can create new opportunities. */}
+          <Route path="/faculty/dashboard" element={only(["faculty", "approver"], <FacultyDashboard />)} />
           <Route path="/faculty/create" element={only(["faculty"], <FacultyCreateOpportunity />)} />
-          <Route path="/faculty/messages" element={only(["faculty"], <FacultyMessages />)} />
-          <Route path="/faculty/attendance" element={only(["faculty"], <FacultyAttendance />)} />
+          <Route path="/faculty/messages" element={only(["faculty", "approver"], <FacultyMessages />)} />
+          <Route path="/faculty/attendance" element={only(["faculty", "approver"], <FacultyAttendance />)} />
 
           {/* Approver page */}
           <Route path="/approver/dashboard" element={only(["approver"], <ApproverDashboard />)} />

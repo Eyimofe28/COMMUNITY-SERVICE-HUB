@@ -36,6 +36,7 @@ import VolunteerActivismRoundedIcon from "@mui/icons-material/VolunteerActivismR
 import WorkOutlineRoundedIcon from "@mui/icons-material/WorkOutlineRounded";
 
 import FacultySidebar from "./FacultySidebar";
+import { getSession } from "../../utils/auth";
 import greetingsImg from "./greetings.png";
 import { formatDate, formatTimeRange, formatHours } from "../../utils/dates";
 
@@ -292,7 +293,8 @@ export default function FacultyDashboard() {
         {/* ----- Top Bar ----- */}
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <Typography variant="h5" sx={{ fontWeight: 700, color: "#111827" }}>
-            Dashboard
+            {/* Approvers use this page to manage the opportunities they created */}
+            {getSession().role === "approver" ? "My Opportunities" : "Dashboard"}
           </Typography>
           <IconButton sx={{ bgcolor: "#F3F4F6", width: 44, height: 44 }}>
             <SearchRoundedIcon />

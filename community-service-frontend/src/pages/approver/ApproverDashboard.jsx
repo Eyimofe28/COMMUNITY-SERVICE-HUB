@@ -9,7 +9,6 @@ import {
   Divider,
   Tabs,
   Tab,
-    IconButton,
   Alert,
 } from "@mui/material";
 
@@ -18,14 +17,13 @@ import VolunteerActivismRoundedIcon from "@mui/icons-material/VolunteerActivismR
 import CleaningServicesRoundedIcon from "@mui/icons-material/CleaningServicesRounded";
 import ApartmentRoundedIcon from "@mui/icons-material/ApartmentRounded";
 import SchoolIcon from "@mui/icons-material/School";
-import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
 import TextField from "@mui/material/TextField";
-import { logout } from "../../utils/auth";
+import FacultySidebar from "../faculty/FacultySidebar";
 import { formatDate, formatTimeRange, hasStarted } from "../../utils/dates";
 import { getErrorMessage } from "../../api/axios";
 
@@ -135,19 +133,18 @@ export default function ApproverDashboard() {
   };
 
   return (
-    <Box sx={{ display: "flex", bgcolor: "#F5F5F7", height: "100vh", overflow: "hidden" }}>
+    <Box sx={{ display: "flex", bgcolor: "#F5F5F7", height: "100vh", overflow: "hidden", paddingLeft: 3 }}>
+      {/* SIDEBAR: Approvals, My Opportunities, Messages, Attendance, Log out */}
+      <FacultySidebar active="approvals" />
+
       {/* MAIN CONTENT AREA */}
       <Box sx={{ flexGrow: 1, p: 5, display: "flex", flexDirection: "column", height: "100vh" }}>
 
-        {/* HEADER + SEARCH */}
+        {/* HEADER */}
         <Box sx={{ display: "flex", justifyContent: "space-between", flexShrink: 0 }}>
           <Typography variant="h4" sx={{ fontWeight: 700 }}>
-            Dashboard
+            Approvals
           </Typography>
-
-          <IconButton sx={{ color: "#111010ff", mt: 2 }} onClick={() => logout()}>
-            <LogoutRoundedIcon />
-          </IconButton>
         </Box>
 
         {/* HELLO BANNER */}

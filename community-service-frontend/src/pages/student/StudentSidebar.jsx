@@ -1,23 +1,28 @@
-// src/components/StudentSidebar.jsx
-import { Box, IconButton, Stack } from "@mui/material";
+// =============================================================================
+// Student sidebar - the vertical navigation shown on every student page
+// -----------------------------------------------------------------------------
+// Usage: <StudentSidebar active="registered" />  (active = key of the current page)
+// Hovering an icon shows its label (SidebarButton, task U1).
+// =============================================================================
+
+import { Box, Stack } from "@mui/material";
 
 import HomeRoundedIcon from "@mui/icons-material/HomeRounded";
-import SchoolRoundedIcon from "@mui/icons-material/SchoolRounded";
 import ListAltRoundedIcon from "@mui/icons-material/ListAltRounded";
 import MailOutlineRoundedIcon from "@mui/icons-material/MailOutlineRounded";
-import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import EmojiEventsRoundedIcon from "@mui/icons-material/EmojiEventsRounded";
 import { logout } from "../../utils/auth";
+import SidebarButton from "../../components/SidebarButton";
 
 export default function StudentSidebar({ active }) {
 
+  // One entry per student page: icon, address, key (matched against "active") and hover label
   const navItems = [
-    { icon: <HomeRoundedIcon />, route: "/student/dashboard", key: "dashboard" },
-    { icon: <ListAltRoundedIcon />, route: "/student/registered", key: "registered" },
-    { icon: <EmojiEventsRoundedIcon />, route: "/student/completed", key: "completed" },
-    { icon: <MailOutlineRoundedIcon />, route: "/student/messages", key: "messages" },
-    // { icon: <SettingsRoundedIcon />, route: "/student/settings", key: "settings" },
+    { icon: <HomeRoundedIcon />, route: "/student/dashboard", key: "dashboard", label: "Dashboard" },
+    { icon: <ListAltRoundedIcon />, route: "/student/registered", key: "registered", label: "Registered Opportunities" },
+    { icon: <EmojiEventsRoundedIcon />, route: "/student/completed", key: "completed", label: "Completed & Missed" },
+    { icon: <MailOutlineRoundedIcon />, route: "/student/messages", key: "messages", label: "Messages" },
   ];
 
   return (
@@ -55,26 +60,23 @@ export default function StudentSidebar({ active }) {
       {/* NAVIGATION */}
       <Stack spacing={3} flexGrow={1} alignItems="center">
         {navItems.map((item) => (
-          <IconButton
+          <SidebarButton
             key={item.key}
-            sx={{
-              color: "#fff",
-              bgcolor: active === item.key ? "#164F3C" : "transparent",
-              width: 50,
-              height: 70,
-              borderRadius: "14px",
-            }}
+            icon={item.icon}
+            label={item.label}
+            active={active === item.key}
             onClick={() => (window.location.href = `${process.env.PUBLIC_URL}${item.route}`)}
-          >
-            {item.icon}
-          </IconButton>
+          />
         ))}
       </Stack>
 
       {/* Logout */}
-      <IconButton sx={{ color: "#fff", mt: 2 }} onClick={() => logout()}>
-        <LogoutRoundedIcon />
-      </IconButton>
+      <SidebarButton
+        icon={<LogoutRoundedIcon />}
+        label="Log out"
+        onClick={() => logout()}
+        sx={{ height: 50, mt: 2 }}
+      />
     </Box>
   );
 }
