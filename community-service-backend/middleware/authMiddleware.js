@@ -41,7 +41,13 @@ module.exports = async (req, res, next) => {
             return res.status(401).json({ message: "Your account no longer exists. Please log in again." });
         }
 
-        // 4. Attach the user to the request for the route handlers.
+        // 4. An account that is not approved (pending or declined) cannot use the
+        //    API, even with a token. The login page explains the reason.
+        if (rows[0].Account_Status !== "approved") {
+            return res.status(401).json({ message: "Your account is not active. Log in again for details." });
+        }
+
+        // 5. Attach the user to the request for the route handlers.
         //    The role comes from the database, NOT from the token, so an admin
         //    promoting/demoting an approver takes effect on the very next request.
         const { Approver, ...info } = rows[0];

@@ -10,11 +10,13 @@
 // SECURITY: the password only lives in this component's state and is sent once,
 //   over HTTPS on the school server. It is never stored in the browser.
 // ERROR HANDLING: wrong credentials, too many attempts, server/network problems
-//   and "session expired" all appear as a message in the card.
+//   and "session expired" all appear as a message in the card. Accounts waiting
+//   for admin approval (amber) or declined (red) get a titled explanation - only
+//   after the correct password, so it never reveals which emails exist.
 // REUSABILITY: uses the shared api client, session helpers and error formatter.
 // =============================================================================
 
-import { Box, Button, TextField, Typography, Paper, Link, IconButton, Alert } from "@mui/material";
+import { Box, Button, TextField, Typography, Paper, Link, IconButton, Alert, AlertTitle } from "@mui/material";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
@@ -32,7 +34,7 @@ export default function Login() {
   // (e.g. "Account created", "Your session has expired")
   const [status, setStatus] = useState(() => {
     const notice = takeLoginNotice();
-    return notice ? { type: "info", text: notice } : null;
+    return notice ? { type: notice.severity || "info", title: notice.title, text: notice.text } : null;
   });
 
   const handleLogin = async (e) => {
@@ -56,6 +58,17 @@ export default function Login() {
       saveSession(res.data);
       navigate(dashboardPathFor(res.data.role));
     } catch (error) {
+      // Account approval (P5a): correct password, but the account is pending
+      // (amber - a waiting state) or declined (red). Other errors stay red.
+      const data = error.response?.data;
+      if (error.response?.status === 403 && data?.code) {
+        setStatus({
+          type: data.code === "ACCOUNT_PENDING" ? "warning" : "error",
+          title: data.title,
+          text: data.message,
+        });
+        return;
+      }
       setStatus({ type: "error", text: getErrorMessage(error, "Login failed. Please try again.") });
     } finally {
       setSubmitting(false);
@@ -118,6 +131,7 @@ export default function Login() {
 
         {status && (
           <Alert severity={status.type} sx={{ mb: 2 }}>
+            {status.title && <AlertTitle sx={{ fontWeight: 700 }}>{status.title}</AlertTitle>}
             {status.text}
           </Alert>
         )}
