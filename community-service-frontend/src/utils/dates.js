@@ -19,6 +19,11 @@ export const ATTENDANCE_EDIT_DAYS = 14;
 export const todayOnCampus = () =>
   new Intl.DateTimeFormat("en-CA", { timeZone: CAMPUS_TIME_ZONE }).format(new Date());
 
+// A full timestamp (e.g. a sign-up time from the database) -> its campus date
+// "YYYY-MM-DD", so an 8 PM Central sign-up is not shown as the next day (UTC)
+export const campusDateOf = (timestamp) =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: CAMPUS_TIME_ZONE }).format(new Date(timestamp));
+
 // Current date and time on campus: { date: "YYYY-MM-DD", time: "HH:MM" }
 export function nowOnCampus() {
   const parts = new Intl.DateTimeFormat("en-CA", {

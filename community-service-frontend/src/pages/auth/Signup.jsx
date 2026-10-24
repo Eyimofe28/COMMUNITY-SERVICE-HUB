@@ -83,7 +83,7 @@ export default function Signup() {
     setSubmitting(true);
     try {
       // Only the fields the backend needs (Confirm Password stays in the browser)
-      await api.post("/auth/signup", {
+      const res = await api.post("/auth/signup", {
         firstName: form.firstName,
         lastName: form.lastName,
         email: form.email.trim().toLowerCase(),
@@ -91,7 +91,16 @@ export default function Signup() {
         role: form.role,
         department: form.role === "faculty" ? form.department : undefined,
       });
-      setLoginNotice("Account created! You can now log in.");
+      // Account approval (P5a): the backend says whether an admin must approve first
+      setLoginNotice(
+        res.data.pendingApproval
+          ? {
+              severity: "info",
+              title: "Account created — waiting for approval",
+              text: "An administrator needs to approve your account before you can log in. Try logging in again later.",
+            }
+          : { severity: "success", text: "Account created! You can now log in." }
+      );
       navigate("/login");
     } catch (error) {
       setServerError(getErrorMessage(error, "Sign up failed. Please try again."));

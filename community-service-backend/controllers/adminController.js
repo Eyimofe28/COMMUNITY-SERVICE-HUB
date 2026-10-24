@@ -111,7 +111,7 @@ exports.removeAdmin = async (req, res) => {
 exports.getAllUsers = async (req, res) => {
     try {
         const { rows } = await db.query(
-            `SELECT "User_ID", "First_Name", "Last_Name", "Email", "Role" FROM users
+            `SELECT "User_ID", "First_Name", "Last_Name", "Email", "Role", "Account_Status" FROM users
              ORDER BY "Role", "Last_Name"`
         );
 

@@ -26,6 +26,7 @@ import PasswordRequirements from "../../components/PasswordRequirements";
 import { isPasswordValid } from "../../utils/passwordRules";
 import { validateName, validateEmail } from "../../utils/validation";
 import { logout } from "../../utils/auth";
+import AccountApprovalCard from "../../components/AccountApprovalCard";
 
 const emptyAdminForm = { firstName: "", lastName: "", email: "", password: "" };
 const emptyPasswordForm = { currentPassword: "", newPassword: "", confirmPassword: "" };
@@ -171,12 +172,15 @@ export default function AdminDashboard() {
       >
         <AdminPanelSettingsRoundedIcon sx={{ fontSize: 64, color: "#0B3D2E" }} />
         <Box>
-          <Typography sx={{ fontSize: "24px", fontWeight: 800 }}>Manage Admins</Typography>
+          <Typography sx={{ fontSize: "24px", fontWeight: 800 }}>Manage Accounts & Admins</Typography>
           <Typography sx={{ color: "#4B5563", mt: 0.5 }}>
-            Add or remove admins and hand off admin access when someone leaves.
+            Approve new accounts, add or remove admins, and hand off admin access when someone leaves.
           </Typography>
         </Box>
       </Paper>
+
+      {/* ACCOUNT APPROVAL (P5a): approval switches + pending/declined accounts */}
+      <AccountApprovalCard />
 
       <Box sx={{ display: "flex", gap: 3, flexWrap: "wrap", alignItems: "flex-start" }}>
         {/* LEFT COLUMN: admin list + handoff steps */}

@@ -4,6 +4,7 @@ const router = express.Router();
 const auth = require("../middleware/authMiddleware");
 const { isAdmin } = require("../middleware/roleMiddleware");
 const adminController = require("../controllers/adminController");
+const accountApproval = require("../controllers/accountApprovalController");
 
 // List admins
 router.get("/admins", auth, isAdmin, adminController.getAdmins);
@@ -44,6 +45,17 @@ router.patch("/opportunity/:id/assign-approver", auth, isAdmin, adminController.
 
 // Assign a (new) faculty member to an opportunity => useful if a faculty account is deleted or changed.
 router.patch("/opportunity/:id/assign-faculty", auth, isAdmin, adminController.adminAssignFaculty);
+
+// ----- Account approval (P5a) -----
+// Approval switches per role (apply to new sign-ups)
+router.get("/settings/approval", auth, isAdmin, accountApproval.getApprovalSettings);
+router.put("/settings/approval", auth, isAdmin, accountApproval.updateApprovalSettings);
+
+// Pending / declined accounts and decisions
+router.get("/accounts", auth, isAdmin, accountApproval.listAccounts);
+router.post("/accounts/approve-all", auth, isAdmin, accountApproval.approveAllPending);
+router.patch("/accounts/:userId/approve", auth, isAdmin, accountApproval.approveAccount);
+router.patch("/accounts/:userId/decline", auth, isAdmin, accountApproval.declineAccount);
 
 module.exports = router;
 

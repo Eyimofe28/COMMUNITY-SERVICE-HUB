@@ -68,14 +68,23 @@ export function logout(reason) {
   window.location.href = `${process.env.PUBLIC_URL}/login`;
 }
 
-// One-time message shown on the login page (after logout, signup, expired session)
-export function setLoginNotice(text) {
-  sessionStorage.setItem("loginNotice", text);
+// One-time message shown on the login page (after logout, signup, expired session).
+// Pass plain text, or { severity, title, text } for a titled, coloured notice
+// (severity: "info" | "success" | "warning" | "error").
+export function setLoginNotice(notice) {
+  const value = typeof notice === "string" ? { severity: "info", text: notice } : notice;
+  sessionStorage.setItem("loginNotice", JSON.stringify(value));
 }
 
-// Read (and clear) that message - called by the login page
+// Read (and clear) that message - called by the login page.
+// Returns { severity, title?, text } or null.
 export function takeLoginNotice() {
-  const notice = sessionStorage.getItem("loginNotice");
+  const stored = sessionStorage.getItem("loginNotice");
   sessionStorage.removeItem("loginNotice");
-  return notice;
+  if (!stored) return null;
+  try {
+    return JSON.parse(stored);
+  } catch {
+    return { severity: "info", text: stored }; // older plain-text value
+  }
 }

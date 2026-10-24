@@ -15,7 +15,8 @@ const jwt = require("jsonwebtoken");
 const db = require("../config/db");
 const { validatePassword, hashPassword, verifyPassword, needsRehash } = require("../utils/passwordPolicy");
 const { normalizeEmail, validateName, validateEmail, validateDepartment } = require("../utils/validation");
-const { effectiveRole } = require("../utils/roles");
+const { effectiveRole, accountStatusNotice } = require("../utils/roles");
+const { requiresApproval, getOfficeContact } = require("../utils/settings");
 
 // Postgres error code for a UNIQUE constraint violation (e.g. duplicate email)
 const UNIQUE_VIOLATION = "23505";
@@ -77,11 +78,15 @@ exports.signup = async (req, res) => {
         client = await db.connect();
         await client.query("BEGIN");
 
+        // Account approval (P5a): if admins require approval for this role, the
+        // account starts as "pending" and cannot log in until an admin approves it
+        const pendingApproval = await requiresApproval(role, client);
+
         const { rows: inserted } = await client.query(
-            `INSERT INTO users ("First_Name", "Last_Name", "Email", "Password_Hash", "Role")
-             VALUES ($1, $2, $3, $4, $5)
+            `INSERT INTO users ("First_Name", "Last_Name", "Email", "Password_Hash", "Role", "Account_Status")
+             VALUES ($1, $2, $3, $4, $5, $6)
              RETURNING "User_ID"`,
-            [firstName, lastName, normalizedEmail, hashedPassword, role]
+            [firstName, lastName, normalizedEmail, hashedPassword, role, pendingApproval ? "pending" : "approved"]
         );
 
         const userId = inserted[0].User_ID;
@@ -102,7 +107,13 @@ exports.signup = async (req, res) => {
 
         await client.query("COMMIT");
 
-        return res.status(201).json({ message: "Account created. You can now log in." });
+        // pendingApproval tells the frontend which message to show on the login page
+        return res.status(201).json({
+            message: pendingApproval
+                ? "Account created. An administrator needs to approve it before you can log in."
+                : "Account created. You can now log in.",
+            pendingApproval,
+        });
 
     } catch (error) {
         // ---- 4. Error handling ----
@@ -139,7 +150,7 @@ exports.login = async (req, res) => {
 
     // ---- 2. Database: look the user up by normalized email ----
     const { rows } = await db.query(
-      'SELECT "User_ID", "First_Name", "Password_Hash", "Role" FROM users WHERE "Email" = $1',
+      'SELECT "User_ID", "First_Name", "Email", "Password_Hash", "Role", "Account_Status" FROM users WHERE "Email" = $1',
       [normalizeEmail(email)]
     );
     const user = rows[0];
@@ -151,6 +162,14 @@ exports.login = async (req, res) => {
     const passwordOk = await verifyPassword(password, user?.Password_Hash);
     if (!user || !passwordOk) {
       return res.status(401).json({ message: "Invalid email or password." });
+    }
+
+    // Account approval (P5a): a pending or declined account gets an explanation
+    // instead of a token. Only reached with the CORRECT password, so this never
+    // reveals which emails have accounts.
+    const notice = accountStatusNotice(user.Account_Status, user.Email, await getOfficeContact());
+    if (notice) {
+      return res.status(403).json(notice);
     }
 
     // Upgrade an older, weaker hash now that we know the correct password.
