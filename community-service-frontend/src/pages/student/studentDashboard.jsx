@@ -1,6 +1,6 @@
 // src/pages/StudentDashboard.jsx
 import { useEffect, useState } from "react";
-import api from "../../api/axios";
+import api, { getErrorMessage } from "../../api/axios";
 import {
   Box,
   Paper,
@@ -125,10 +125,11 @@ export default function StudentDashboard() {
       {}
     );
 
+    // Mark it registered and count the taken spot
     setOpportunities(prev =>
       prev.map(opp =>
         opp.Opportunity_ID === opportunityId
-          ? { ...opp, _registered: true }
+          ? { ...opp, _registered: true, Registered_Count: (opp.Registered_Count ?? 0) + 1 }
           : opp
       )
     );
@@ -137,7 +138,15 @@ export default function StudentDashboard() {
 
   } catch (err) {
     console.error("Register error:", err);
-    alert(err.response?.data?.message || "Failed to register.");
+    // 409 = it filled up since the list was loaded: show it as full
+    if (err.response?.status === 409) {
+      setOpportunities(prev =>
+        prev.map(opp =>
+          opp.Opportunity_ID === opportunityId ? { ...opp, Registered_Count: opp.Capacity } : opp
+        )
+      );
+    }
+    alert(getErrorMessage(err, "Failed to register."));
   } finally {
     setRegisteringId(null);
   }
@@ -306,6 +315,9 @@ export default function StudentDashboard() {
           opportunities.map((opp) => {
             const id = opp.Opportunity_ID;
             const isExpanded = expandedId === id;
+            // Capacity: null = no limit; otherwise how many spots are still open
+            const spotsLeft = opp.Capacity ? Math.max(opp.Capacity - (opp.Registered_Count ?? 0), 0) : null;
+            const isFull = spotsLeft === 0;
 
             const date = opp.Date
               ? formatDate(opp.Date)
@@ -393,12 +405,21 @@ export default function StudentDashboard() {
                         {date} {date && timeRange && "•"} {timeRange}
                       </Typography>
                     )}
+                    {/* Capacity: spots left (amber when 3 or fewer) or Full */}
+                    {spotsLeft !== null && (
+                      <Typography
+                        variant="body2"
+                        sx={{ fontWeight: 600, color: isFull ? "#B91C1C" : spotsLeft <= 3 ? "#B45309" : "#166534" }}
+                      >
+                        {isFull ? "Full" : `${spotsLeft} spot${spotsLeft === 1 ? "" : "s"} left`}
+                      </Typography>
+                    )}
                   </Box>
 
                   {/* right: register button */}
                   <Button
                     variant={opp._registered ? "outlined" : "contained"}
-                    disabled={opp._registered || registeringId === id}
+                    disabled={opp._registered || isFull || registeringId === id}
                     sx={{
                       borderRadius: "999px",
                       px: 3,
@@ -418,7 +439,7 @@ export default function StudentDashboard() {
                       }
                     }}
                   >
-                    {opp._registered ? "Registered" : "Register"}
+                    {opp._registered ? "Registered" : isFull ? "Full" : "Register"}
                   </Button>
                 </Box>
 

@@ -22,6 +22,7 @@ import StudentDashboard from "./pages/student/studentDashboard";
 import FacultyDashboard from "./pages/faculty/FacultyDashboard";
 import ApproverDashboard from "./pages/approver/ApproverDashboard";
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import SettingsPage from "./pages/settings/SettingsPage";
 
 // Shorthand: a page only the given roles may open
 const only = (roles, page) => <ProtectedRoute roles={roles}>{page}</ProtectedRoute>;
@@ -49,11 +50,16 @@ function App() {
               promoted), but only faculty can create new opportunities. */}
           <Route path="/faculty/dashboard" element={only(["faculty", "approver"], <FacultyDashboard />)} />
           <Route path="/faculty/create" element={only(["faculty"], <FacultyCreateOpportunity />)} />
+          {/* Edit a pending / edit + resubmit a rejected opportunity (F1, F2) */}
+          <Route path="/faculty/edit/:id" element={only(["faculty", "approver"], <FacultyCreateOpportunity />)} />
           <Route path="/faculty/messages" element={only(["faculty", "approver"], <FacultyMessages />)} />
           <Route path="/faculty/attendance" element={only(["faculty", "approver"], <FacultyAttendance />)} />
 
           {/* Approver page */}
           <Route path="/approver/dashboard" element={only(["approver"], <ApproverDashboard />)} />
+
+          {/* Settings (F3): account details + change password */}
+          <Route path="/settings" element={only(["student", "faculty", "approver"], <SettingsPage />)} />
 
           {/* Admin page */}
           <Route path="/admin/dashboard" element={only(["admin"], <AdminDashboard />)} />

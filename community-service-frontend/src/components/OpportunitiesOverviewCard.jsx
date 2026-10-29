@@ -1,7 +1,7 @@
 // =============================================================================
 // Opportunities overview (Admin Dashboard - Opportunities tab) - P5b / M2
 // -----------------------------------------------------------------------------
-// Every opportunity in the system, split into Pending / Approved / Rejected / All
+// Every opportunity in the system, split into Pending / Approved / Rejected / Cancelled / All
 // tabs, with who created it and who decided it. Admins can approve or reject
 // pending ones - the same rules as approvers (pending only, final, no approving
 // after the start time, reason required to reject); the admin is recorded as the
@@ -39,6 +39,7 @@ const TABS = [
   { label: "Pending", status: "Pending", color: "brown" },
   { label: "Approved", status: "Approved", color: "green" },
   { label: "Rejected", status: "Rejected", color: "red" },
+  { label: "Cancelled", status: "Cancelled", color: "#4B5563" },
   { label: "All", status: null, color: "inherit" },
 ];
 
@@ -47,6 +48,7 @@ const STATUS_STYLE = {
   Pending: { bgcolor: "#FEF9C3", color: "#92400E" },
   Approved: { bgcolor: "#DCFCE7", color: "#166534" },
   Rejected: { bgcolor: "#FEE2E2", color: "#B91C1C" },
+  Cancelled: { bgcolor: "#E5E7EB", color: "#374151" },
 };
 
 const fullName = (first, last) => [first, last].filter(Boolean).join(" ");
@@ -153,6 +155,16 @@ export default function OpportunitiesOverviewCard() {
                       Created by {fullName(o.Faculty_First_Name, o.Faculty_Last_Name) || o.Person_In_Charge || "Unknown"}
                       {o.Approval_Status !== "Pending" && approverName && ` • ${o.Approval_Status} by ${approverName}`}
                     </Typography>
+                    {["Approved", "Cancelled"].includes(o.Approval_Status) && (
+                      <Typography variant="body2" sx={{ color: "#6B7280" }}>
+                        Registered: {o.Registered_Count ?? 0}{o.Capacity ? ` / ${o.Capacity}` : " (no limit)"}
+                      </Typography>
+                    )}
+                    {o.Approval_Status === "Cancelled" && o.Cancellation_Reason && (
+                      <Typography variant="body2" sx={{ color: "#374151", mt: 0.5 }}>
+                        Cancelled: {o.Cancellation_Reason}
+                      </Typography>
+                    )}
                     {o.Approval_Status === "Rejected" && o.Rejection_Reason && (
                       <Typography variant="body2" sx={{ color: "#B91C1C", mt: 0.5 }}>
                         Reason: {o.Rejection_Reason}
