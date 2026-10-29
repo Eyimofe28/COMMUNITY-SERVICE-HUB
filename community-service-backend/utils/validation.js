@@ -56,3 +56,34 @@ exports.validateDepartment = (value) => {
     }
     return null;
 };
+
+// -----------------------------------------------------------------------------
+// Opportunity details (create / edit / resubmit) - faculty batch F1 + capacity
+// -----------------------------------------------------------------------------
+// title: 3-100 characters; location: required, 2-150; description: optional,
+// up to 1000; capacity: optional whole number 1-500 (empty = no limit).
+// Returns an error message, or null when the details are valid.
+exports.validateOpportunityDetails = ({ title, location, description, capacity }) => {
+    if (typeof title !== "string" || title.trim().length < 3 || title.trim().length > 100) {
+        return "Title must be 3-100 characters.";
+    }
+    if (typeof location !== "string" || location.trim().length < 2 || location.trim().length > 150) {
+        return "Location is required (2-150 characters).";
+    }
+    if (description !== undefined && description !== null && description !== "") {
+        if (typeof description !== "string" || description.length > 1000) {
+            return "Description must be 1000 characters or fewer.";
+        }
+    }
+    if (capacity !== undefined && capacity !== null && capacity !== "") {
+        const n = Number(capacity);
+        if (!Number.isInteger(n) || n < 1 || n > 500) {
+            return "Max students must be a whole number from 1 to 500 (leave it empty for no limit).";
+        }
+    }
+    return null;
+};
+
+// Capacity as stored: a whole number, or null for "no limit"
+exports.normalizeCapacity = (capacity) =>
+    capacity === undefined || capacity === null || capacity === "" ? null : Number(capacity);
