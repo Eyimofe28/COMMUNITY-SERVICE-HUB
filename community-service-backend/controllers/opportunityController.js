@@ -116,86 +116,88 @@ exports.createOpportunity = async (req, res) => {
   }
 };
 
+// -----------------------------------------------------------------------------
+// decideOpportunity - the ONE place the approve/reject rules live
+// Used by approvers (PATCH /api/opportunity/approve/:id) and admins
+// (PATCH /api/admin/opportunity/:id/approve|reject), so both follow identical rules.
+//
+// Rules: only Pending opportunities can be decided and the decision is final;
+// nobody decides their own submission; an event that has started can be rejected
+// but not approved; rejecting needs a reason. The decider's User_ID is stored as
+// Approver_ID (approver OR admin - see migration 003).
+// Returns { code, body }: the HTTP status and JSON to send back.
+// -----------------------------------------------------------------------------
+async function decideOpportunity({ opportunityId, deciderId, status, rejectionReason }) {
+    if (!opportunityId) {
+        return { code: 400, body: { message: "Invalid opportunity." } };
+    }
+
+    // 1. Validate input
+    if (!["Approved", "Rejected"].includes(status)) {
+        return { code: 400, body: { message: "Status must be either 'Approved' or 'Rejected'." } };
+    }
+
+    // 2. Get the opportunity
+    const { rows: opps } = await db.query(
+        'SELECT "Faculty_ID", "Approval_Status", "Date", "Start_Time" FROM opportunity WHERE "Opportunity_ID" = $1',
+        [opportunityId]
+    );
+    if (opps.length === 0) {
+        return { code: 404, body: { message: "Opportunity not found." } };
+    }
+    const opportunity = opps[0];
+
+    // 3. Nobody approves or rejects their own submission
+    if (opportunity.Faculty_ID === deciderId) {
+        return { code: 403, body: { message: "You cannot approve or reject an opportunity you created." } };
+    }
+
+    // 4. Decisions are final: only Pending opportunities can be approved/rejected
+    if (opportunity.Approval_Status !== "Pending") {
+        return { code: 409, body: { message: `This opportunity has already been ${opportunity.Approval_Status.toLowerCase()}.` } };
+    }
+
+    // 5. An event that has already started can no longer be approved
+    //    (rejecting it is still allowed, to clear it from the queue)
+    if (status === "Approved" && hasStarted(opportunity.Date, opportunity.Start_Time)) {
+        return {
+            code: 400,
+            body: { message: "This opportunity's start time has passed, so it can no longer be approved. You can reject it instead." },
+        };
+    }
+
+    // 6. If rejecting, require a reason
+    if (status === "Rejected" && (typeof rejectionReason !== "string" || rejectionReason.trim() === "")) {
+        return { code: 400, body: { message: "Rejection reason is required when rejecting." } };
+    }
+
+    // 7. Approve or reject. "AND Approval_Status = 'Pending'" makes this safe if
+    //    two people act at the same moment - only the first one counts.
+    const result = await db.query(
+        `UPDATE opportunity
+         SET "Approval_Status" = $1, "Rejection_Reason" = $2, "Approver_ID" = $3
+         WHERE "Opportunity_ID" = $4 AND "Approval_Status" = 'Pending'`,
+        [status, status === "Rejected" ? rejectionReason.trim() : null, deciderId, opportunityId]
+    );
+    if (result.rowCount === 0) {
+        return { code: 409, body: { message: "This opportunity was just decided by someone else." } };
+    }
+
+    return { code: 200, body: { message: `Opportunity successfully ${status.toLowerCase()}.` } };
+}
+exports.decideOpportunity = decideOpportunity;
+
+// PATCH /api/opportunity/approve/:id  -  approver approves or rejects
+// Body: { status: "Approved" | "Rejected", rejectionReason? }
 exports.approveOpportunity = async (req, res) => {
-    const opportunityId = parseId(req.params.id);
-    const approverId = req.user.userId;
-    const { status, rejectionReason } = req.body;
-
     try {
-        if (!opportunityId) {
-            return res.status(400).json({ message: "Invalid opportunity." });
-        }
-
-        // 1. Validate input
-        if (!status || !["Approved", "Rejected"].includes(status)) {
-            return res.status(400).json({
-                message: "Status must be either 'Approved' or 'Rejected'."
-            });
-        }
-
-        // 2. Get the opportunity
-        const { rows: opps } = await db.query(
-            'SELECT * FROM opportunity WHERE "Opportunity_ID" = $1',
-            [opportunityId]
-        );
-
-        if (opps.length === 0) {
-            return res.status(404).json({ message: "Opportunity not found." });
-        }
-
-        const opportunity = opps[0];
-
-        // 3. Prevent approver from approving their own submission
-        if (opportunity.Faculty_ID === approverId) {
-            return res.status(403).json({
-                message: "You cannot approve or reject an opportunity you created."
-            });
-        }
-
-        // 4. Decisions are final: only Pending opportunities can be approved/rejected
-        if (opportunity.Approval_Status !== "Pending") {
-            return res.status(409).json({
-                message: `This opportunity has already been ${opportunity.Approval_Status.toLowerCase()}.`
-            });
-        }
-
-        // 5. An event that has already started can no longer be approved
-        //    (rejecting it is still allowed, to clear it from the queue)
-        if (status === "Approved" && hasStarted(opportunity.Date, opportunity.Start_Time)) {
-            return res.status(400).json({
-                message: "This opportunity's start time has passed, so it can no longer be approved. You can reject it instead."
-            });
-        }
-
-        // 6. If rejecting, require rejectionReason
-        if (status === "Rejected" && (typeof rejectionReason !== "string" || rejectionReason.trim() === "")) {
-            return res.status(400).json({
-                message: "Rejection reason is required when rejecting."
-            });
-        }
-
-        // 7. Approve or reject. "AND Approval_Status = 'Pending'" makes this safe if
-        //    two approvers act at the same moment - only the first one counts.
-        const result = await db.query(
-            `UPDATE opportunity
-             SET "Approval_Status" = $1, "Rejection_Reason" = $2, "Approver_ID" = $3
-             WHERE "Opportunity_ID" = $4 AND "Approval_Status" = 'Pending'`,
-            [
-                status,
-                status === "Rejected" ? rejectionReason.trim() : null,
-                approverId,
-                opportunityId
-            ]
-        );
-
-        if (result.rowCount === 0) {
-            return res.status(409).json({ message: "This opportunity was just decided by someone else." });
-        }
-
-        return res.status(200).json({
-            message: `Opportunity successfully ${status.toLowerCase()}.`
+        const { code, body } = await decideOpportunity({
+            opportunityId: parseId(req.params.id),
+            deciderId: req.user.userId,
+            status: req.body.status,
+            rejectionReason: req.body.rejectionReason,
         });
-
+        return res.status(code).json(body);
     } catch (error) {
         console.error("Approve Opportunity Error:", error);
         return res.status(500).json({ message: "Server error while updating opportunity." });
@@ -330,7 +332,9 @@ exports.listPending = async (req, res) => {
                 "Approval_Status"
             FROM opportunity
             WHERE "Approval_Status" = 'Pending'
-            ORDER BY "Date" ASC, "Start_Time" ASC`
+              AND "Faculty_ID" <> $1   -- not their own submissions (they can't decide those)
+            ORDER BY "Date" ASC, "Start_Time" ASC`,
+            [req.user.userId]
         );
 
         return res.status(200).json({

@@ -7,6 +7,8 @@
 //   PATCH /api/admin/accounts/:userId/approve pending/declined -> approved
 //   PATCH /api/admin/accounts/:userId/decline pending -> declined
 //   POST  /api/admin/accounts/approve-all     every pending account -> approved
+//   GET   /api/admin/settings/office-contact  who users are told to contact
+//   PUT   /api/admin/settings/office-contact  change it
 //
 // Rules:
 //   - A switch only affects NEW signups. Accounts already pending stay pending
@@ -17,7 +19,7 @@
 // =============================================================================
 
 const db = require("../config/db");
-const { getApprovalSettings, setSetting } = require("../utils/settings");
+const { getApprovalSettings, setSetting, getOfficeContact } = require("../utils/settings");
 
 const STATUSES = ["pending", "declined"];
 
@@ -57,6 +59,33 @@ exports.updateApprovalSettings = async (req, res) => {
     } catch (error) {
         console.error("Update Approval Settings Error:", error);
         return res.status(500).json({ message: "Server error saving approval settings." });
+    }
+};
+
+// GET /api/admin/settings/office-contact
+exports.getOfficeContact = async (req, res) => {
+    try {
+        return res.status(200).json({ officeContact: await getOfficeContact() });
+    } catch (error) {
+        console.error("Get Office Contact Error:", error);
+        return res.status(500).json({ message: "Server error retrieving the office contact." });
+    }
+};
+
+// PUT /api/admin/settings/office-contact   Body: { officeContact }
+// Shown in the approval messages as "Contact the <officeContact>", e.g.
+// "Community Service office" or "Community Service office (cs@mvsu.edu)".
+exports.updateOfficeContact = async (req, res) => {
+    try {
+        const value = typeof req.body?.officeContact === "string" ? req.body.officeContact.trim() : "";
+        if (value.length < 3 || value.length > 120) {
+            return res.status(400).json({ message: "The office contact must be 3-120 characters." });
+        }
+        await setSetting("office_contact", value);
+        return res.status(200).json({ message: "Office contact saved.", officeContact: value });
+    } catch (error) {
+        console.error("Update Office Contact Error:", error);
+        return res.status(500).json({ message: "Server error saving the office contact." });
     }
 };
 

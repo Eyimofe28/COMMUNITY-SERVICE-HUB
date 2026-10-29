@@ -1,6 +1,13 @@
 const db = require("../config/db");
 const { validatePassword, hashPassword } = require("../utils/passwordPolicy");
 const { normalizeEmail, validateName, validateEmail } = require("../utils/validation");
+const { decideOpportunity } = require("./opportunityController");
+
+// Reads "/:id" route parameters safely: a positive whole number, or null
+const parseId = (value) => {
+    const id = Number(value);
+    return Number.isInteger(id) && id > 0 ? id : null;
+};
 
 // NOTE: The FIRST admin is created from the server with `npm run make-admin`
 // (see community-service-backend/scripts/make-admin.js). There is intentionally
@@ -107,12 +114,15 @@ exports.removeAdmin = async (req, res) => {
     }
 };
 
-// Get all users
+// Get all users (faculty rows include Approver and Faculty_Dept for the Users list)
 exports.getAllUsers = async (req, res) => {
     try {
         const { rows } = await db.query(
-            `SELECT "User_ID", "First_Name", "Last_Name", "Email", "Role", "Account_Status" FROM users
-             ORDER BY "Role", "Last_Name"`
+            `SELECT u."User_ID", u."First_Name", u."Last_Name", u."Email", u."Role", u."Account_Status",
+                    u."Created_At", f."Approver", f."Faculty_Dept"
+             FROM users u
+             LEFT JOIN faculty f ON f."User_ID" = u."User_ID"
+             ORDER BY u."Role", u."Last_Name", u."First_Name"`
         );
 
         return res.status(200).json({
@@ -140,6 +150,7 @@ exports.getAllOpportunities = async (req, res) => {
                 o."Location",
                 o."Person_In_Charge",
                 o."Approval_Status",
+                o."Rejection_Reason",
                 o."Faculty_ID",
                 o."Approver_ID",
                 uf."First_Name" AS "Faculty_First_Name",
@@ -253,8 +264,12 @@ exports.getAllAttendance = async (req, res) => {
 // Promote/demote faculty to/from approver
 exports.setFacultyApproverStatus = async (req, res) => {
     try {
-        const facultyUserId = req.params.userId;
+        const facultyUserId = parseId(req.params.userId);
         const { approver } = req.body;  // true / false
+
+        if (!facultyUserId || typeof approver !== "boolean") {
+            return res.status(400).json({ message: "Send a valid faculty member and approver: true or false." });
+        }
 
         // Ensure faculty exists
         const { rows } = await db.query(
@@ -281,64 +296,34 @@ exports.setFacultyApproverStatus = async (req, res) => {
     }
 };
 
+// PATCH /api/admin/opportunity/:id/approve  -  admin approves (M2)
+// Same rules as approvers (utils: decideOpportunity); the admin is recorded as
+// the decider in Approver_ID (allowed since migration 003).
 exports.adminApproveOpportunity = async (req, res) => {
     try {
-        const opportunityId = req.params.id;
-
-        // Ensure opportunity exists
-        const { rows } = await db.query(
-            'SELECT * FROM opportunity WHERE "Opportunity_ID" = $1',
-            [opportunityId]
-        );
-
-        if (rows.length === 0) {
-            return res.status(404).json({ message: "Opportunity not found." });
-        }
-
-        // Admin approves
-        await db.query(
-            `UPDATE opportunity
-             SET "Approval_Status" = 'Approved', "Approver_ID" = NULL
-             WHERE "Opportunity_ID" = $1`,
-            [opportunityId]
-        );
-
-        return res.status(200).json({ message: "Opportunity approved by admin." });
-
+        const { code, body } = await decideOpportunity({
+            opportunityId: parseId(req.params.id),
+            deciderId: req.user.userId,
+            status: "Approved",
+        });
+        return res.status(code).json(body);
     } catch (error) {
         console.error("Admin Approve Opportunity Error:", error);
         return res.status(500).json({ message: "Server error approving opportunity." });
     }
 };
 
+// PATCH /api/admin/opportunity/:id/reject  -  admin rejects (M2)
+// Body: { reason } (rejectionReason is accepted too)
 exports.adminRejectOpportunity = async (req, res) => {
     try {
-        const opportunityId = req.params.id;
-        const { reason } = req.body;
-
-        if (!reason) {
-            return res.status(400).json({ message: "Rejection reason required." });
-        }
-
-        const { rows } = await db.query(
-            'SELECT * FROM opportunity WHERE "Opportunity_ID" = $1',
-            [opportunityId]
-        );
-
-        if (rows.length === 0) {
-            return res.status(404).json({ message: "Opportunity not found." });
-        }
-
-        await db.query(
-            `UPDATE opportunity
-             SET "Approval_Status" = 'Rejected',
-                 "Rejection_Reason" = $1
-             WHERE "Opportunity_ID" = $2`,
-            [reason, opportunityId]
-        );
-
-        return res.status(200).json({ message: "Opportunity rejected by admin." });
-
+        const { code, body } = await decideOpportunity({
+            opportunityId: parseId(req.params.id),
+            deciderId: req.user.userId,
+            status: "Rejected",
+            rejectionReason: req.body.reason ?? req.body.rejectionReason,
+        });
+        return res.status(code).json(body);
     } catch (error) {
         console.error("Admin Reject Opportunity Error:", error);
         return res.status(500).json({ message: "Server error rejecting opportunity." });

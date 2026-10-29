@@ -28,6 +28,18 @@ exports.isFaculty = (req, res, next) => {
     next();
 };
 
+// FACULTY OR APPROVER - "manage my own opportunities" routes (my submissions,
+// registrations, attendance, announcements). A faculty member promoted to
+// approver keeps managing the opportunities they created. Safe because each of
+// those handlers also checks the user OWNS the opportunity (Faculty_ID = userId).
+// Creating new opportunities stays faculty-only (isRegularFaculty).
+exports.isFacultyOrApprover = (req, res, next) => {
+    if (req.user.role !== "faculty" && req.user.role !== "approver") {
+        return res.status(403).json({ message: "Access denied. Faculty only." });
+    }
+    next();
+};
+
 // ADMIN ONLY
 exports.isAdmin = (req, res, next) => {
     if (req.user.role !== "admin") {
