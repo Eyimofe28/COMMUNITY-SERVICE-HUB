@@ -11,6 +11,7 @@ import HomeRoundedIcon from "@mui/icons-material/HomeRounded";
 import ListAltRoundedIcon from "@mui/icons-material/ListAltRounded";
 import MailOutlineRoundedIcon from "@mui/icons-material/MailOutlineRounded";
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
+import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
 import EmojiEventsRoundedIcon from "@mui/icons-material/EmojiEventsRounded";
 import { logout } from "../../utils/auth";
 import SidebarButton from "../../components/SidebarButton";
@@ -69,6 +70,15 @@ export default function StudentSidebar({ active }) {
           />
         ))}
       </Stack>
+
+      {/* Settings (F3) */}
+      <SidebarButton
+        icon={<SettingsRoundedIcon />}
+        label="Settings"
+        active={active === "settings"}
+        onClick={() => (window.location.href = `${process.env.PUBLIC_URL}/settings`)}
+        sx={{ height: 50 }}
+      />
 
       {/* Logout */}
       <SidebarButton

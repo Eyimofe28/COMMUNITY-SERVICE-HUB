@@ -22,6 +22,7 @@ import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import api, { getErrorMessage } from "../../api/axios";
 import { saveSession, dashboardPathFor, takeLoginNotice } from "../../utils/auth";
+import PasswordField from "../../components/PasswordField";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -147,10 +148,9 @@ export default function Login() {
           onChange={(e) => setEmail(e.target.value)}
         />
 
-        <TextField
+        <PasswordField
           fullWidth
           label="Password"
-          type="password"
           autoComplete="current-password"
           variant="outlined"
           sx={{ mb: 3 }}

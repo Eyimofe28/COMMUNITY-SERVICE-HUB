@@ -21,6 +21,7 @@ import ChecklistRoundedIcon from "@mui/icons-material/ChecklistRounded";
 import FactCheckRoundedIcon from "@mui/icons-material/FactCheckRounded";
 import ListAltRoundedIcon from "@mui/icons-material/ListAltRounded";
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
+import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
 import { logout, getSession } from "../../utils/auth";
 import SidebarButton from "../../components/SidebarButton";
 
@@ -91,6 +92,15 @@ export default function FacultySidebar({ active }) {
           />
         ))}
       </Stack>
+
+      {/* Settings (F3) */}
+      <SidebarButton
+        icon={<SettingsRoundedIcon />}
+        label="Settings"
+        active={active === "settings"}
+        onClick={() => (window.location.href = `${process.env.PUBLIC_URL}/settings`)}
+        sx={{ height: 50 }}
+      />
 
       {/* Logout */}
       <SidebarButton

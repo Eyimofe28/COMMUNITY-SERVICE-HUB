@@ -4,13 +4,15 @@
 // Route: /faculty/dashboard (faculty role only). Newly created opportunities
 // land here under "Pending" (see FacultyCreateOpportunity.jsx).
 //
-// Loads GET /api/opportunity/my-submissions once, splits the results into
-// Pending / Approved / Rejected tabs, and shows ITEMS_PER_PAGE cards per page.
-// Clicking a card expands its description, location and any rejection reason.
+// Loads GET /api/opportunity/my-submissions, splits the results into
+// Pending / Approved / Rejected / Cancelled tabs, and shows ITEMS_PER_PAGE cards
+// per page. Clicking a card expands its details and actions (faculty batch):
+//   Pending   -> Edit, Withdraw            Rejected -> Edit & Resubmit, Withdraw
+//   Approved  -> Cancel (before it starts, with a reason students will see)
 // =============================================================================
 
 import { useEffect, useState } from "react";
-import api from "../../api/axios";
+import api, { getErrorMessage } from "../../api/axios";
 
 import {
   Box,
@@ -25,6 +27,13 @@ import {
   Tabs,
   Tab,
   Button,
+  Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  TextField,
 } from "@mui/material";
 
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
@@ -38,7 +47,7 @@ import WorkOutlineRoundedIcon from "@mui/icons-material/WorkOutlineRounded";
 import FacultySidebar from "./FacultySidebar";
 import { getSession } from "../../utils/auth";
 import greetingsImg from "./greetings.png";
-import { formatDate, formatTimeRange, formatHours } from "../../utils/dates";
+import { formatDate, formatTimeRange, formatHours, hasStarted } from "../../utils/dates";
 
 // ---------- ICON PICKER ----------
 // Picks an icon from keywords in the title (e.g. "clean" -> cleaning icon);
@@ -71,9 +80,18 @@ export default function FacultyDashboard() {
   const [pending, setPending] = useState([]);
   const [approved, setApproved] = useState([]);
   const [rejected, setRejected] = useState([]);
+  const [cancelled, setCancelled] = useState([]);
+
+  // Withdraw / cancel confirmation: { opp, type: "withdraw" | "cancel" } or null
+  const [action, setAction] = useState(null);
+  // Reason typed in the cancel dialog (shown to registered students)
+  const [cancelReason, setCancelReason] = useState("");
+  const [acting, setActing] = useState(false);
+  // Result of the last action: { type: "success" | "error", text }
+  const [status, setStatus] = useState(null);
 
   const [loading, setLoading] = useState(true);
-  // Selected tab: 0 = Pending, 1 = Approved, 2 = Rejected
+  // Selected tab: 0 = Pending, 1 = Approved, 2 = Rejected, 3 = Cancelled
   const [tab, setTab] = useState(0);
   // Opportunity_ID of the card that is expanded (null = none)
   const [expandedId, setExpandedId] = useState(null);
@@ -81,38 +99,66 @@ export default function FacultyDashboard() {
   const [pendingPage, setPendingPage] = useState(0);
   const [approvedPage, setApprovedPage] = useState(0);
   const [rejectedPage, setRejectedPage] = useState(0);
+  const [cancelledPage, setCancelledPage] = useState(0);
 
   // Cards shown per page in each tab
   const ITEMS_PER_PAGE = 2;
 
   // ---------------- LOAD SUBMISSIONS ----------------
-  // Runs once when the page opens: fetches this faculty member's opportunities
-  // (newest first) and sorts them into the three tabs.
+  // Fetches this faculty member's opportunities (newest first) and sorts them
+  // into the four tabs. Runs when the page opens and again after an action.
+  const fetchSubmissions = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get("/opportunity/my-submissions");
+
+      const rows = res.data.submissions || [];
+
+      // Group them client-side
+      setPending(rows.filter((o) => o.Approval_Status === "Pending"));
+      setApproved(rows.filter((o) => o.Approval_Status === "Approved"));
+      setRejected(rows.filter((o) => o.Approval_Status === "Rejected"));
+      setCancelled(rows.filter((o) => o.Approval_Status === "Cancelled"));
+
+      setSubmissions(rows);
+    } catch (err) {
+      console.error("My Submissions Load Error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchSubmissions = async () => {
-      setLoading(true);
-      try {
-        const res = await api.get(
-          "/opportunity/my-submissions"
-        );
-
-        const rows = res.data.submissions || [];
-
-        // Group them client-side
-        setPending(rows.filter((o) => o.Approval_Status === "Pending"));
-        setApproved(rows.filter((o) => o.Approval_Status === "Approved"));
-        setRejected(rows.filter((o) => o.Approval_Status === "Rejected"));
-
-        setSubmissions(rows);
-      } catch (err) {
-        console.error("My Submissions Load Error:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     if (token) fetchSubmissions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
+
+  // ---------------- WITHDRAW / CANCEL ----------------
+  // Runs the confirmed action, shows the result and reloads the lists
+  const confirmAction = async () => {
+    const { opp, type } = action;
+    setActing(true);
+    try {
+      const res =
+        type === "withdraw"
+          ? await api.delete(`/opportunity/${opp.Opportunity_ID}`)
+          : await api.patch(`/opportunity/${opp.Opportunity_ID}/cancel`, { reason: cancelReason });
+      setStatus({ type: "success", text: res.data.message });
+      setExpandedId(null);
+      await fetchSubmissions();
+    } catch (err) {
+      setStatus({ type: "error", text: getErrorMessage(err, `Failed to ${type} the opportunity.`) });
+    } finally {
+      setActing(false);
+      setAction(null);
+      setCancelReason("");
+    }
+  };
+
+  // Opens the edit page (Pending = edit, Rejected = edit & resubmit)
+  const openEditor = (opp) => {
+    window.location.href = `${process.env.PUBLIC_URL}/faculty/edit/${opp.Opportunity_ID}`;
+  };
 
   // Switching tabs collapses any expanded card
   const handleTabChange = (e, v) => {
@@ -124,21 +170,24 @@ export default function FacultyDashboard() {
   const getCurrentPage = () => {
     if (tab === 0) return pendingPage;
     if (tab === 1) return approvedPage;
-    return rejectedPage;
+    if (tab === 2) return rejectedPage;
+    return cancelledPage;
   };
 
   // Set current page based on tab
   const setCurrentPage = (page) => {
     if (tab === 0) setPendingPage(page);
     else if (tab === 1) setApprovedPage(page);
-    else setRejectedPage(page);
+    else if (tab === 2) setRejectedPage(page);
+    else setCancelledPage(page);
   };
 
   // Get current tab data
   const getCurrentData = () => {
     if (tab === 0) return pending;
     if (tab === 1) return approved;
-    return rejected;
+    if (tab === 2) return rejected;
+    return cancelled;
   };
 
   // Paginate data: the slice of the current tab's list for the current page
@@ -162,7 +211,7 @@ export default function FacultyDashboard() {
   };
 
   // ---------- STATUS CHIP COLORS ----------
-  // Props for the status badge: green = Approved, red = Rejected, yellow = Pending
+  // Props for the status badge: green = Approved, red = Rejected, grey = Cancelled, yellow = Pending
   const getStatusChipProps = (status) => {
     const base = {
       label: status,
@@ -175,6 +224,9 @@ export default function FacultyDashboard() {
     }
     if (status === "Rejected") {
       return { ...base, sx: { ...base.sx, bgcolor: "#FEE2E2", color: "#B91C1C" } };
+    }
+    if (status === "Cancelled") {
+      return { ...base, sx: { ...base.sx, bgcolor: "#E5E7EB", color: "#374151" } };
     }
     return { ...base, sx: { ...base.sx, bgcolor: "#FEF9C3", color: "#92400E" } };
   };
@@ -267,11 +319,55 @@ export default function FacultyDashboard() {
                 </Typography>
               )}
 
+              {/* Registrations vs capacity (approved / cancelled) */}
+              {["Approved", "Cancelled"].includes(opp.Approval_Status) && (
+                <Typography variant="body2" sx={{ color: "#6B7280" }}>
+                  Registered: {opp.Registered_Count ?? 0}
+                  {opp.Capacity ? ` / ${opp.Capacity} spots` : " (no limit)"}
+                </Typography>
+              )}
+              {opp.Approval_Status === "Pending" && opp.Capacity && (
+                <Typography variant="body2" sx={{ color: "#6B7280" }}>
+                  Max students: {opp.Capacity}
+                </Typography>
+              )}
+
               {/* Rejection reason (only on rejected opportunities) */}
               {opp.Approval_Status === "Rejected" && opp.Rejection_Reason && (
                 <Typography variant="body2" sx={{ color: "#B91C1C", mt: 1 }}>
                   <strong>Rejection Reason:</strong> {opp.Rejection_Reason}
                 </Typography>
+              )}
+
+              {/* Cancellation reason (only on cancelled opportunities) */}
+              {opp.Approval_Status === "Cancelled" && opp.Cancellation_Reason && (
+                <Typography variant="body2" sx={{ color: "#374151", mt: 1 }}>
+                  <strong>Cancelled:</strong> {opp.Cancellation_Reason}
+                </Typography>
+              )}
+            </Stack>
+
+            {/* ---- Actions (buttons stop the click from collapsing the card) ---- */}
+            <Stack direction="row" spacing={1} sx={{ mt: 2 }} onClick={(e) => e.stopPropagation()}>
+              {opp.Approval_Status === "Pending" && (
+                <Button size="small" variant="contained" sx={{ bgcolor: "#0B3D2E", textTransform: "none" }} onClick={() => openEditor(opp)}>
+                  Edit
+                </Button>
+              )}
+              {opp.Approval_Status === "Rejected" && (
+                <Button size="small" variant="contained" sx={{ bgcolor: "#0B3D2E", textTransform: "none" }} onClick={() => openEditor(opp)}>
+                  Edit & Resubmit
+                </Button>
+              )}
+              {["Pending", "Rejected"].includes(opp.Approval_Status) && (
+                <Button size="small" variant="outlined" color="error" sx={{ textTransform: "none" }} onClick={() => setAction({ opp, type: "withdraw" })}>
+                  Withdraw
+                </Button>
+              )}
+              {opp.Approval_Status === "Approved" && !hasStarted(opp.Date, opp.Start_Time) && (
+                <Button size="small" variant="outlined" color="error" sx={{ textTransform: "none" }} onClick={() => setAction({ opp, type: "cancel" })}>
+                  Cancel Opportunity
+                </Button>
               )}
             </Stack>
           </>
@@ -327,6 +423,13 @@ export default function FacultyDashboard() {
           <Avatar src={greetingsImg} sx={{ width: 96, height: 96 }} />
         </Paper>
 
+        {/* Result of the last withdraw / cancel */}
+        {status && (
+          <Alert severity={status.type} sx={{ mb: 2 }} onClose={() => setStatus(null)}>
+            {status.text}
+          </Alert>
+        )}
+
         {/* ---- TABS ---- */}
         <Tabs
           value={tab}
@@ -335,9 +438,10 @@ export default function FacultyDashboard() {
           textColor="primary"
           indicatorColor="primary"
         >
-          <Tab label="Pending" sx={{ fontWeight: 600, color: 'brown'}} />
-          <Tab label="Approved" sx={{ fontWeight: 600 , color: 'green' }} />
-          <Tab label="Rejected" sx={{ fontWeight: 600 , color: 'red'}} />
+          <Tab label={`Pending (${pending.length})`} sx={{ fontWeight: 600, color: 'brown'}} />
+          <Tab label={`Approved (${approved.length})`} sx={{ fontWeight: 600 , color: 'green' }} />
+          <Tab label={`Rejected (${rejected.length})`} sx={{ fontWeight: 600 , color: 'red'}} />
+          <Tab label={`Cancelled (${cancelled.length})`} sx={{ fontWeight: 600 , color: '#4B5563'}} />
         </Tabs>
         <Divider sx={{ mb: 3 }} />
 
@@ -351,6 +455,7 @@ export default function FacultyDashboard() {
                 {tab === 0 && "No pending requests available"}
                 {tab === 1 && "No approved requests available"}
                 {tab === 2 && "No rejected requests available"}
+                {tab === 3 && "No cancelled opportunities"}
               </Typography>
             </Box>
           ) : (
@@ -383,6 +488,44 @@ export default function FacultyDashboard() {
           </Button>
         </Box>
       </Box>
+
+      {/* WITHDRAW / CANCEL CONFIRMATION */}
+      <Dialog open={!!action} onClose={() => !acting && setAction(null)} fullWidth maxWidth="sm">
+        <DialogTitle>
+          {action?.type === "withdraw" ? "Withdraw this opportunity?" : "Cancel this opportunity?"}
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: action?.type === "cancel" ? 2 : 0 }}>
+            {action?.type === "withdraw"
+              ? `"${action?.opp.Title}" will be deleted. This cannot be undone.`
+              : `"${action?.opp.Title}" will be marked as cancelled. Registered students will see it as cancelled with your reason, and attendance can no longer be taken.`}
+          </DialogContentText>
+          {action?.type === "cancel" && (
+            <TextField
+              fullWidth
+              multiline
+              rows={3}
+              label="Reason (shown to registered students)"
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              helperText={`3-500 characters (${cancelReason.trim().length}/500)`}
+            />
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAction(null)} disabled={acting}>
+            Keep it
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            disabled={acting || (action?.type === "cancel" && (cancelReason.trim().length < 3 || cancelReason.trim().length > 500))}
+            onClick={confirmAction}
+          >
+            {acting ? "Working..." : action?.type === "withdraw" ? "Withdraw" : "Cancel Opportunity"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

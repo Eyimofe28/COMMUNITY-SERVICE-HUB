@@ -12,6 +12,7 @@ import {
   Stack,
   Divider,
   CircularProgress,
+  Alert,
 } from "@mui/material";
 
 import HomeRoundedIcon from "@mui/icons-material/HomeRounded";
@@ -171,6 +172,8 @@ export default function RegisteredOpportunities() {
             const isExpanded = expandedId === id;
             // After the start time: no unregistering, waiting for faculty to take attendance
             const started = hasStarted(opp.Date, opp.Start_Time);
+            // Cancelled by the faculty member: shown with the reason; can be removed any time
+            const cancelled = opp.Approval_Status === "Cancelled";
 
             return (
               <Paper
@@ -219,6 +222,31 @@ export default function RegisteredOpportunities() {
                   </Box>
                 </Box>
 
+                {/* Cancelled notice - always visible so students don't miss it */}
+                {cancelled && (
+                  <Alert
+                    severity="warning"
+                    sx={{ mt: 2 }}
+                    action={
+                      <Button
+                        color="inherit"
+                        size="small"
+                        disabled={unregisteringId === id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleUnregister(id);
+                        }}
+                        sx={{ textTransform: "none", fontWeight: 600 }}
+                      >
+                        {unregisteringId === id ? "Removing..." : "Remove"}
+                      </Button>
+                    }
+                  >
+                    <strong>Cancelled by {opp.Person_In_Charge || "the faculty member"}.</strong>{" "}
+                    {opp.Cancellation_Reason}
+                  </Alert>
+                )}
+
                 {/* Expandable Section */}
                 {isExpanded && (
                   <>
@@ -232,15 +260,18 @@ export default function RegisteredOpportunities() {
                           Location: {opp.Location || "N/A"}
                         </Typography>
 
-                        <Typography variant="body2" sx={{ color: started ? "#B45309" : "#10B981" }}>
-                          {started
+                        <Typography variant="body2" sx={{ color: cancelled ? "#B91C1C" : started ? "#B45309" : "#10B981" }}>
+                          {cancelled
+                            ? "Status: Cancelled"
+                            : started
                             ? "Status: Awaiting attendance from faculty"
                             : "Status: Registered"}
                         </Typography>
                       </Stack>
 
-                      {/* UNREGISTER BUTTON - only before the event starts */}
-                      {!started && (
+                      {/* UNREGISTER BUTTON - only before the event starts
+                          (cancelled ones use the Remove button above) */}
+                      {!started && !cancelled && (
                       <Button
                         variant="outlined"
                         color="error"

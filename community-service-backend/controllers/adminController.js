@@ -151,6 +151,10 @@ exports.getAllOpportunities = async (req, res) => {
                 o."Person_In_Charge",
                 o."Approval_Status",
                 o."Rejection_Reason",
+                o."Cancellation_Reason",
+                o."Capacity",
+                (SELECT COUNT(*)::int FROM registration r
+                 WHERE r."Opportunity_ID" = o."Opportunity_ID") AS "Registered_Count",
                 o."Faculty_ID",
                 o."Approver_ID",
                 uf."First_Name" AS "Faculty_First_Name",

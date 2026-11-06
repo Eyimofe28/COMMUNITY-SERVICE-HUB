@@ -27,6 +27,7 @@ import PasswordRequirements from "../../components/PasswordRequirements";
 import { isPasswordValid } from "../../utils/passwordRules";
 import { validateName, validateEmail, validateDepartment } from "../../utils/validation";
 import { setLoginNotice } from "../../utils/auth";
+import PasswordField from "../../components/PasswordField";
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -197,15 +198,14 @@ export default function Signup() {
           {...fieldProps("email")}
         />
 
-        <TextField label="Password" type="password" autoComplete="new-password" fullWidth sx={{ mb: 0.5 }} {...fieldProps("password")} />
+        <PasswordField label="Password" autoComplete="new-password" fullWidth sx={{ mb: 0.5 }} {...fieldProps("password")} />
 
         <Box sx={{ mb: 2, px: 0.5 }}>
           <PasswordRequirements password={form.password} />
         </Box>
 
-        <TextField
+        <PasswordField
           label="Confirm Password"
-          type="password"
           autoComplete="new-password"
           fullWidth
           sx={{ mb: 0.5 }}

@@ -234,17 +234,33 @@ exports.login = async (req, res) => {
 };
 
 // -----------------------------------------------------------------------------
-// GET /api/auth/me  -  who is logged in, with their CURRENT role
+// GET /api/auth/me  -  who is logged in, with their CURRENT role and account
+// details (name, email, department) for the Settings page
 // Requires a valid token. The frontend calls this when a page loads so a role
 // changed by an admin (e.g. promoted to approver) is picked up without logging
 // in again. The role is the one authMiddleware read from the database.
 // -----------------------------------------------------------------------------
-exports.me = (req, res) => {
-  return res.status(200).json({
-    userId: req.user.userId,
-    role: req.user.role,
-    firstName: req.user.info.First_Name,
-  });
+exports.me = async (req, res) => {
+  try {
+    // Faculty / approvers: include their department (shown on the Settings page)
+    let department = null;
+    if (req.user.info.Role === "faculty") {
+      const { rows } = await db.query('SELECT "Faculty_Dept" FROM faculty WHERE "User_ID" = $1', [req.user.userId]);
+      department = rows[0]?.Faculty_Dept || null;
+    }
+
+    return res.status(200).json({
+      userId: req.user.userId,
+      role: req.user.role,
+      firstName: req.user.info.First_Name,
+      lastName: req.user.info.Last_Name,
+      email: req.user.info.Email,
+      department,
+    });
+  } catch (error) {
+    console.error("Me Error:", error);
+    return res.status(500).json({ message: "Server error loading your account." });
+  }
 };
 
 // -----------------------------------------------------------------------------

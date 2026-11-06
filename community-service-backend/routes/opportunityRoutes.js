@@ -24,6 +24,14 @@ const opportunityController = require("../controllers/opportunityController");
 // isRegularFaculty: faculty only, and NOT approvers (approvers review, they don't create).
 router.post("/create", auth, isRegularFaculty, opportunityController.createOpportunity);
 
+// Faculty manage their OWN opportunities (approvers too, for ones they created):
+// edit a Pending one / edit + resubmit a Rejected one (F1, F2)
+router.put("/:id", auth, isFacultyOrApprover, opportunityController.updateOpportunity);
+// withdraw (delete) a Pending or Rejected one (F1)
+router.delete("/:id", auth, isFacultyOrApprover, opportunityController.withdrawOpportunity);
+// cancel an Approved one before it starts, with a reason for students (F1)
+router.patch("/:id/cancel", auth, isFacultyOrApprover, opportunityController.cancelOpportunity);
+
 // Approver approves an opportunity
 router.patch("/approve/:id", auth, isApprover, opportunityController.approveOpportunity);
 

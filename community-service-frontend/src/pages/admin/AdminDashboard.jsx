@@ -41,12 +41,13 @@ import { isPasswordValid } from "../../utils/passwordRules";
 import { validateName, validateEmail } from "../../utils/validation";
 import { logout } from "../../utils/auth";
 import AccountApprovalCard from "../../components/AccountApprovalCard";
+import ChangePasswordCard from "../../components/ChangePasswordCard";
 import UsersCard from "../../components/UsersCard";
 import OpportunitiesOverviewCard from "../../components/OpportunitiesOverviewCard";
 import OfficeContactCard from "../../components/OfficeContactCard";
+import PasswordField from "../../components/PasswordField";
 
 const emptyAdminForm = { firstName: "", lastName: "", email: "", password: "" };
-const emptyPasswordForm = { currentPassword: "", newPassword: "", confirmPassword: "" };
 
 export default function AdminDashboard() {
   const currentUserId = Number(localStorage.getItem("userId"));
@@ -61,9 +62,6 @@ export default function AdminDashboard() {
   const [adminFormStatus, setAdminFormStatus] = useState(null);
   const [creating, setCreating] = useState(false);
 
-  const [passwordForm, setPasswordForm] = useState(emptyPasswordForm);
-  const [passwordStatus, setPasswordStatus] = useState(null);
-  const [changingPassword, setChangingPassword] = useState(false);
 
   const [removeTarget, setRemoveTarget] = useState(null);
   const [listStatus, setListStatus] = useState(null);
@@ -130,34 +128,6 @@ export default function AdminDashboard() {
       loadAdmins();
     } catch (err) {
       setListStatus({ type: "error", text: err.response?.data?.message || "Failed to remove admin." });
-    }
-  };
-
-  // ---- Change my password ----
-  const handlePasswordFormChange = (e) => {
-    setPasswordForm({ ...passwordForm, [e.target.name]: e.target.value });
-  };
-
-  const handleChangePassword = async () => {
-    setPasswordStatus(null);
-
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setPasswordStatus({ type: "error", text: "New passwords do not match." });
-      return;
-    }
-
-    setChangingPassword(true);
-    try {
-      const res = await api.post("/auth/change-password", {
-        currentPassword: passwordForm.currentPassword,
-        newPassword: passwordForm.newPassword,
-      });
-      setPasswordStatus({ type: "success", text: res.data.message });
-      setPasswordForm(emptyPasswordForm);
-    } catch (err) {
-      setPasswordStatus({ type: "error", text: err.response?.data?.message || "Failed to change password." });
-    } finally {
-      setChangingPassword(false);
     }
   };
 
@@ -336,11 +306,10 @@ export default function AdminDashboard() {
                 error={!!adminForm.email && !!adminErrors.email}
                 helperText={adminForm.email && adminErrors.email}
               />
-              <TextField
+              <PasswordField
                 fullWidth
                 label="Temporary Password"
                 name="password"
-                type="password"
                 value={adminForm.password}
                 onChange={handleAdminFormChange}
               />
@@ -360,53 +329,8 @@ export default function AdminDashboard() {
             </Stack>
           </Paper>
 
-          <Paper elevation={0} sx={{ p: 3, borderRadius: "20px" }}>
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
-              Change My Password
-            </Typography>
-
-            {passwordStatus && (
-              <Alert severity={passwordStatus.type} sx={{ mb: 2 }} onClose={() => setPasswordStatus(null)}>
-                {passwordStatus.text}
-              </Alert>
-            )}
-
-            <Stack spacing={2}>
-              <TextField
-                fullWidth
-                label="Current Password"
-                name="currentPassword"
-                type="password"
-                value={passwordForm.currentPassword}
-                onChange={handlePasswordFormChange}
-              />
-              <TextField
-                fullWidth
-                label="New Password"
-                name="newPassword"
-                type="password"
-                value={passwordForm.newPassword}
-                onChange={handlePasswordFormChange}
-              />
-              <PasswordRequirements password={passwordForm.newPassword} />
-              <TextField
-                fullWidth
-                label="Confirm New Password"
-                name="confirmPassword"
-                type="password"
-                value={passwordForm.confirmPassword}
-                onChange={handlePasswordFormChange}
-              />
-              <Button
-                variant="contained"
-                disabled={changingPassword || !isPasswordValid(passwordForm.newPassword)}
-                onClick={handleChangePassword}
-                sx={{ bgcolor: "#0B3D2E", py: 1.2, "&:hover": { bgcolor: "#0d4d38" } }}
-              >
-                {changingPassword ? "Saving..." : "Change Password"}
-              </Button>
-            </Stack>
-          </Paper>
+          {/* Shared with the Settings page (components/ChangePasswordCard.jsx) */}
+          <ChangePasswordCard title="Change My Password" />
         </Stack>
       </Box>
       </>
