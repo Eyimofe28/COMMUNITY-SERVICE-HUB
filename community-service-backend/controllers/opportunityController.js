@@ -828,15 +828,20 @@ exports.submitAttendance = async (req, res) => {
         client = await db.connect();
         await client.query("BEGIN");
 
-        for (const { studentId, attended, hours } of entries) {
-            await client.query(
-                `INSERT INTO attendance ("Student_ID", "Opportunity_ID", "Attended", "Hours_Earned")
-                 VALUES ($1, $2, $3, $4)
-                 ON CONFLICT ("Student_ID", "Opportunity_ID")
-                 DO UPDATE SET "Attended" = EXCLUDED."Attended", "Hours_Earned" = EXCLUDED."Hours_Earned"`,
-                [studentId, opportunityId, attended, hours]
-            );
-        }
+        // All entries in ONE statement (unnest turns the arrays into rows), so a
+        // large roster costs one round trip to the database instead of one per student
+        await client.query(
+            `INSERT INTO attendance ("Student_ID", "Opportunity_ID", "Attended", "Hours_Earned")
+             SELECT s, $1, a, h FROM unnest($2::int[], $3::boolean[], $4::numeric[]) AS t(s, a, h)
+             ON CONFLICT ("Student_ID", "Opportunity_ID")
+             DO UPDATE SET "Attended" = EXCLUDED."Attended", "Hours_Earned" = EXCLUDED."Hours_Earned"`,
+            [
+                opportunityId,
+                entries.map((e) => e.studentId),
+                entries.map((e) => e.attended),
+                entries.map((e) => e.hours),
+            ]
+        );
 
         // Recalculate each affected student's total from ALL their attendance
         // records - never "+= hours" - so re-submitting cannot double-count.
