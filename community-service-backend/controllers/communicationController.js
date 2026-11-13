@@ -55,7 +55,7 @@ exports.getMessages = async (req, res) => {
         const userId = req.user.userId;
         const opportunityId = req.params.opportunityId;
 
-        if (!/^d+$/.test(String(opportunityId))) {
+        if (!/^\d+$/.test(String(opportunityId))) {
             return res.status(400).json({ message: "Invalid opportunity." });
         }
 
