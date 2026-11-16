@@ -8,3 +8,10 @@ community-service-backend/ssl/
 # Server runtime files (created by deploy/ scripts)
 backend.log
 backend.pid
+
+# Personal academic work and working copies (kept in OneDrive, not in the repo)
+documentation/Community_Service_Hub_Senior_Project_Paper.*
+documentation/Senior_Project_Written_Report_Paper.docx
+documentation/Eyimofe_Ajagunna_Annotated_Bibliography.docx
+documentation/*_tracked.docx
+documentation/* (1).*
